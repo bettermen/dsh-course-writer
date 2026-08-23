@@ -5,6 +5,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { GENRES } from '../core/genres.ts'
+import { t } from './i18n.ts'
 
 const GENRE_GROUPS = [...new Set(GENRES.map((g) => g.group))]
 
@@ -21,23 +22,23 @@ interface GraphEdge { source: string; target: string; label?: string }
 interface Graph { nodes: GraphNode[]; edges: GraphEdge[] }
 
 const PHASES: Array<{ id: string; label: string }> = [
-  { id: 'topic', label: '课程选题' },
-  { id: 'setting', label: '学情设定' },
-  { id: 'character', label: '教学目标' },
-  { id: 'outline', label: '课程大纲' },
-  { id: 'volume', label: '单元设计' },
-  { id: 'chapter', label: '课时教案' },
-  { id: 'writing', label: '课件与练习' },
-  { id: 'revision', label: '评估修订' },
-  { id: 'done', label: '结课' },
+  { id: 'topic', label: t('phaseTopic') },
+  { id: 'setting', label: t('phaseSetting') },
+  { id: 'character', label: t('phaseCharacter') },
+  { id: 'outline', label: t('phaseOutline') },
+  { id: 'volume', label: t('phaseVolume') },
+  { id: 'chapter', label: t('phaseChapter') },
+  { id: 'writing', label: t('phaseWriting') },
+  { id: 'revision', label: t('phaseRevision') },
+  { id: 'done', label: t('phaseDone') },
 ]
 
 const PHASE_STATE: Record<string, { label: string; color: string }> = {
-  locked: { label: '锁定', color: '#9a9a9a' },
-  in_progress: { label: '进行中', color: '#378add' },
-  review: { label: '待审', color: '#ef9f27' },
-  approved: { label: '已通过', color: '#2f9e5b' },
-  skipped: { label: '跳过', color: '#9a9a9a' },
+  locked: { label: t('phaseLocked'), color: '#9a9a9a' },
+  in_progress: { label: t('phaseInProgress'), color: '#378add' },
+  review: { label: t('phaseReview'), color: '#ef9f27' },
+  approved: { label: t('phaseApproved'), color: '#2f9e5b' },
+  skipped: { label: t('phaseSkipped'), color: '#9a9a9a' },
 }
 
 function escapeHtml(s: string): string {
@@ -174,18 +175,18 @@ export function WorkshopLayout({ api: base, fenceHeader, onClose }: Options & { 
       setProjects(list)
       setLoading(false)
       if (list.length > 0) void select(list[0]!.id)
-    }).catch(() => { setError('项目列表加载失败'); setLoading(false) })
+    }).catch(() => { setError(t('loadFail')); setLoading(false) })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // 章节切换时，从章节列表回填标题到编辑框（用户可自定义覆盖）
   useEffect(() => {
     const c = chapters.find((x) => x.no === chapterNo)
-    setChapterTitle(c?.title || `第 ${chapterNo} 课`)
+    setChapterTitle(c?.title || `${t('lessonPrefix')}${chapterNo}${t('lessonSuffix')}`)
   }, [chapterNo, chapters])
 
   const loadChapter = async (id: string, no: number): Promise<void> => {
-    if (dirty && no !== chapterNo && !window.confirm('当前章节有未保存的修改，是否放弃？')) return
+    if (dirty && no !== chapterNo && !window.confirm(t('confirmSwitchChapter'))) return
     setChapterNo(no)
     const j = await api(`/projects/${id}/chapters/${no}`)
     setDraft(typeof (j?.value ?? j) === 'string' ? (j?.value ?? j) : '')
@@ -194,7 +195,7 @@ export function WorkshopLayout({ api: base, fenceHeader, onClose }: Options & { 
 
   const select = async (id: string): Promise<void> => {
     if (id === selected) return
-    if (dirty && !window.confirm('当前有未保存的修改，切换后丢失。是否继续？')) return
+    if (dirty && !window.confirm(t('confirmSwitchProject'))) return
     setSelected(id)
     setNotice('')
     setDirty(false)
@@ -209,9 +210,9 @@ export function WorkshopLayout({ api: base, fenceHeader, onClose }: Options & { 
 
   const saveInternal = async (silent: boolean): Promise<void> => {
     if (!selected) return
-    const title = chapterTitle.trim() || `第 ${chapterNo} 课`
+    const title = chapterTitle.trim() || `${t('lessonPrefix')}${chapterNo}${t('lessonSuffix')}`
     await api(`/projects/${selected}/chapters/${chapterNo}`, { method: 'POST', body: JSON.stringify({ title, text: draft }) })
-    if (!silent) setNotice('已保存')
+    if (!silent) setNotice(t('savedNotice'))
     setDirty(false)
     // 仅刷新章节列表（不切换章节，避免跳回第 1 课）
     const ch = await api(`/projects/${selected}/chapters`)
@@ -249,7 +250,7 @@ export function WorkshopLayout({ api: base, fenceHeader, onClose }: Options & { 
     await reloadProjects()
     if (created?.id) await select(created.id)
     setShowCreate(false)
-    setNotice('已新建课程')
+    setNotice(t('createdNotice'))
   }
 
   const triggerDownload = (blob: Blob, fileName: string): void => {
@@ -276,7 +277,7 @@ export function WorkshopLayout({ api: base, fenceHeader, onClose }: Options & { 
       triggerDownload(new Blob([v.content], { type: 'text/plain;charset=utf-8' }), v.fileName)
     }
     setShowExport(false)
-    setNotice('已导出')
+    setNotice(t('exportedNotice'))
   }
 
   const parseShares = (j: any): Array<{ token: string; mode: string; createdAt: string }> => {
@@ -301,7 +302,7 @@ export function WorkshopLayout({ api: base, fenceHeader, onClose }: Options & { 
   }
 
   const copyShare = async (): Promise<void> => {
-    try { await navigator.clipboard.writeText(shareLink); setNotice('已复制链接') } catch { window.prompt('复制链接', shareLink) }
+    try { await navigator.clipboard.writeText(shareLink); setNotice(t('copiedNotice')) } catch { window.prompt(t('copyLinkPrompt'), shareLink) }
   }
 
   const revokeShare = async (token: string): Promise<void> => {
@@ -314,18 +315,18 @@ export function WorkshopLayout({ api: base, fenceHeader, onClose }: Options & { 
   const renameProject = async (): Promise<void> => {
     if (!selected) return
     const cur = projects.find((p) => p.id === selected)
-    const title = window.prompt('新的课程名称', cur?.title ?? '')
+    const title = window.prompt(t('renamePrompt'), cur?.title ?? '')
     if (!title || !title.trim()) return
     await api(`/projects/${selected}/rename`, { method: 'POST', body: JSON.stringify({ title: title.trim() }) })
     await reloadProjects()
     if (book) setBook({ ...book, book: { ...book.book, title: title.trim() } })
-    setNotice('已重命名')
+    setNotice(t('renamedNotice'))
   }
 
   const deleteProject = async (): Promise<void> => {
     if (!selected) return
     const cur = projects.find((p) => p.id === selected)
-    const ok = window.confirm(`确定删除课程「${cur?.title ?? selected}」吗？此操作不可恢复。`)
+    const ok = window.confirm(`${t('delProjectPrefix')}${cur?.title ?? selected}${t('delProjectSuffix')}`)
     if (!ok) return
     await api(`/projects/${selected}/delete`, { method: 'POST', body: JSON.stringify({ keepChapters: false }) })
     const list = await reloadProjects()
@@ -337,7 +338,7 @@ export function WorkshopLayout({ api: base, fenceHeader, onClose }: Options & { 
       setChapters([])
       setChapterTitle('')
     }
-    setNotice('已删除课程')
+    setNotice(t('deletedNotice'))
   }
 
   const reloadLore = async (): Promise<void> => {
@@ -383,7 +384,7 @@ export function WorkshopLayout({ api: base, fenceHeader, onClose }: Options & { 
   }
 
   const deleteEntry = async (id: string): Promise<void> => {
-    if (!window.confirm('确定删除该知识点吗？此操作不可恢复。')) return
+    if (!window.confirm(t('confirmDeleteLore'))) return
     await api(`/lorebook/entries/${id}/delete`, { method: 'POST', body: '{}' })
     await reloadLore()
   }
@@ -449,7 +450,7 @@ export function WorkshopLayout({ api: base, fenceHeader, onClose }: Options & { 
   }
 
   const handleClose = (): void => {
-    if (dirty && !window.confirm('有未保存的修改，确定关闭？')) return
+    if (dirty && !window.confirm(t('confirmClose'))) return
     onClose()
   }
 
@@ -460,26 +461,26 @@ export function WorkshopLayout({ api: base, fenceHeader, onClose }: Options & { 
   return (
     <div style={rootStyle}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 16px', borderBottom: '0.5px solid #e5e5e5' }}>
-        <span style={{ fontWeight: 600, fontSize: 15 }}>虾说教材写作</span>
+        <span style={{ fontWeight: 600, fontSize: 15 }}>{t('appName')}</span>
         <select value={selected} onChange={(e) => void select(e.target.value)} style={{ padding: '4px 8px', borderRadius: 6, border: '0.5px solid #ccc', fontSize: 13 }}>
           {projects.map((p) => <option key={p.id} value={p.id}>{p.title}</option>)}
         </select>
-        <button onClick={openCreate} style={btn}>＋新建</button>
-        <button onClick={() => void renameProject()} disabled={!selected} style={btn}>重命名</button>
-        <button onClick={() => void deleteProject()} disabled={!selected} style={{ ...btn, color: '#c0392b', borderColor: '#e6b3ad' }}>删除</button>
-        <button onClick={() => setShowExport(true)} disabled={!selected} style={btn}>导出</button>
-        <button onClick={() => void openShare()} disabled={!selected} style={btn}>分享</button>
+        <button onClick={openCreate} style={btn}>{t('newProject')}</button>
+        <button onClick={() => void renameProject()} disabled={!selected} style={btn}>{t('rename')}</button>
+        <button onClick={() => void deleteProject()} disabled={!selected} style={{ ...btn, color: '#c0392b', borderColor: '#e6b3ad' }}>{t('delete')}</button>
+        <button onClick={() => setShowExport(true)} disabled={!selected} style={btn}>{t('export')}</button>
+        <button onClick={() => void openShare()} disabled={!selected} style={btn}>{t('share')}</button>
         <span style={{ flex: 1 }} />
         {notice && <span style={{ fontSize: 12, color: '#2f9e5b' }}>{notice}</span>}
-        <button onClick={shrinkToHalf} disabled={win === 'half'} style={btn}>缩小50%</button>
-        <button onClick={() => setWin('full')} disabled={win === 'full'} style={btn}>全屏</button>
-        <button onClick={handleClose} style={btn}>关闭</button>
+        <button onClick={shrinkToHalf} disabled={win === 'half'} style={btn}>{t('shrinkHalf')}</button>
+        <button onClick={() => setWin('full')} disabled={win === 'full'} style={btn}>{t('fullscreen')}</button>
+        <button onClick={handleClose} style={btn}>{t('close')}</button>
       </div>
 
       {win === 'half' && (
         <div
           onMouseDown={startResize}
-          title="拖动调整窗口大小"
+          title={t('resizeTitle')}
           style={{ position: 'absolute', left: 0, bottom: 0, width: 24, height: 24, cursor: 'nesw-resize', zIndex: 100, display: 'flex', alignItems: 'flex-end', justifyContent: 'flex-start' }}
         >
           <svg width="13" height="13" viewBox="0 0 13 13" style={{ margin: 4 }}>
@@ -488,19 +489,19 @@ export function WorkshopLayout({ api: base, fenceHeader, onClose }: Options & { 
         </div>
       )}
 
-      {loading ? <div style={{ padding: 24, color: '#888', fontSize: 13 }}>加载中…</div> : error ? <div style={{ padding: 24, color: '#c33', fontSize: 13 }}>{error}</div> : (
+      {loading ? <div style={{ padding: 24, color: '#888', fontSize: 13 }}>{t('loading')}</div> : error ? <div style={{ padding: 24, color: '#c33', fontSize: 13 }}>{error}</div> : (
         <div style={{ flex: 1, display: 'flex', gap: 0, minHeight: 0 }}>
           {/* 左栏：章节 / 阶段 双视图 */}
           <div style={{ width: win === 'full' ? leftW : '20%', flexShrink: 0, ...col, borderRight: 'none' }}>
             <div style={{ display: 'flex', gap: 6 }}>
-              <button onClick={() => setLeftTab('chapters')} style={leftTab === 'chapters' ? activeBtn : btn}>章节</button>
-              <button onClick={() => setLeftTab('phases')} style={leftTab === 'phases' ? activeBtn : btn}>阶段</button>
+              <button onClick={() => setLeftTab('chapters')} style={leftTab === 'chapters' ? activeBtn : btn}>{t('chapters')}</button>
+              <button onClick={() => setLeftTab('phases')} style={leftTab === 'phases' ? activeBtn : btn}>{t('phases')}</button>
             </div>
             {leftTab === 'chapters' ? (
               <>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span style={{ fontSize: 12, color: '#888', fontWeight: 500 }}>章节</span>
-                  <button onClick={() => void loadChapter(selected, chapters.length + 1)} style={btn}>＋新课</button>
+                  <span style={{ fontSize: 12, color: '#888', fontWeight: 500 }}>{t('chapters')}</span>
+                  <button onClick={() => void loadChapter(selected, chapters.length + 1)} style={btn}>{t('newLesson')}</button>
                 </div>
                 {chapters.map((c) => (
                   <div key={c.no} onClick={() => void loadChapter(selected, c.no)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 8px', borderRadius: 6, background: chapterNo === c.no ? '#f2f6ff' : 'transparent', fontSize: 13, cursor: 'pointer' }}>
@@ -508,7 +509,7 @@ export function WorkshopLayout({ api: base, fenceHeader, onClose }: Options & { 
                     <span style={{ flex: 1, fontWeight: chapterNo === c.no ? 600 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.title || `第 ${c.no} 课`}</span>
                   </div>
                 ))}
-                {chapters.length === 0 && <div style={{ fontSize: 12, color: '#999', padding: 8 }}>暂无章节，点「＋新课」创建</div>}
+                {chapters.length === 0 && <div style={{ fontSize: 12, color: '#999', padding: 8 }}>{t('noChapters')}</div>}
               </>
             ) : (
               <>
@@ -524,12 +525,12 @@ export function WorkshopLayout({ api: base, fenceHeader, onClose }: Options & { 
                     </div>
                   )
                 })}
-                <div style={{ marginTop: 'auto', fontSize: 12, color: '#888' }}>进度 {doneCount}/9 阶段</div>
+                <div style={{ marginTop: 'auto', fontSize: 12, color: '#888' }}>{t('progress')} {doneCount}/9 {t('phasesUnit')}</div>
               </>
             )}
           </div>
 
-          {win === 'full' && <div onMouseDown={(e) => startColResize('left', e)} style={{ width: 6, flexShrink: 0, cursor: 'col-resize', background: 'transparent', borderLeft: '1px solid #e5e5e5', borderRight: '1px solid #e5e5e5' }} title="拖动调整左栏宽度" />}
+          {win === 'full' && <div onMouseDown={(e) => startColResize('left', e)} style={{ width: 6, flexShrink: 0, cursor: 'col-resize', background: 'transparent', borderLeft: '1px solid #e5e5e5', borderRight: '1px solid #e5e5e5' }} title={t('resizeLeft')} />}
 
           {/* 中栏：编辑区 */}
           <div style={{ flex: win === 'full' ? 1 : '0 0 60%', ...col, minWidth: 0 }}>
@@ -538,13 +539,13 @@ export function WorkshopLayout({ api: base, fenceHeader, onClose }: Options & { 
               <input
                 value={chapterTitle}
                 onChange={(e) => setChapterTitle(e.target.value)}
-                placeholder={`第 ${chapterNo} 课`}
+                placeholder={`${t('lessonPrefix')}${chapterNo}${t('lessonSuffix')}`}
                 style={{ width: '100%', minWidth: 60, maxWidth: 260, padding: '5px 8px', borderRadius: 6, border: '0.5px solid #ccc', fontSize: 13 }}
               />
               <span style={{ flex: 1 }} />
-              <button onClick={() => setViewMode('edit')} style={viewMode === 'edit' ? activeBtn : btn}>编辑</button>
-              <button onClick={() => setViewMode('preview')} style={viewMode === 'preview' ? activeBtn : btn}>预览</button>
-              <button onClick={() => void save()} style={{ ...btn, borderColor: '#378add', color: '#185fa5', background: '#eef3fe' }}>保存</button>
+              <button onClick={() => setViewMode('edit')} style={viewMode === 'edit' ? activeBtn : btn}>{t('edit')}</button>
+              <button onClick={() => setViewMode('preview')} style={viewMode === 'preview' ? activeBtn : btn}>{t('preview')}</button>
+              <button onClick={() => void save()} style={{ ...btn, borderColor: '#378add', color: '#185fa5', background: '#eef3fe' }}>{t('save')}</button>
             </div>
             <div style={{ flex: 1, display: 'flex', gap: 8, minHeight: 0 }}>
               {viewMode !== 'preview' && (
@@ -552,7 +553,7 @@ export function WorkshopLayout({ api: base, fenceHeader, onClose }: Options & { 
                   value={draft}
                   onChange={(e) => { setDraft(e.target.value); setDirty(true) }}
                   style={{ flex: 1, width: '100%', minHeight: 0, padding: 12, border: '0.5px solid #e5e5e5', borderRadius: 8, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: 13, lineHeight: 1.7, resize: 'none', boxSizing: 'border-box' }}
-                  placeholder="在此编写教案（支持 Markdown）…"
+                  placeholder={t('editorPlaceholder')}
                 />
               )}
               {viewMode !== 'edit' && (
@@ -560,44 +561,44 @@ export function WorkshopLayout({ api: base, fenceHeader, onClose }: Options & { 
               )}
             </div>
             <div style={{ display: 'flex', gap: 16, fontSize: 12, color: '#888' }}>
-              <span>字数 {draft.length}</span>
-              <span>{book?.book.stats.totalWords ?? 0} 字（总计）</span>
-              <span style={{ color: dirty ? '#ef9f27' : '#2f9e5b' }}>{dirty ? '● 未保存' : '✓ 已保存'}</span>
+              <span>{t('wordCount')} {draft.length}</span>
+              <span>{book?.book.stats.totalWords ?? 0} {t('totalWords')}</span>
+              <span style={{ color: dirty ? '#ef9f27' : '#2f9e5b' }}>{dirty ? t('unsaved') : t('saved')}</span>
             </div>
           </div>
 
-          {win === 'full' && <div onMouseDown={(e) => startColResize('right', e)} style={{ width: 6, flexShrink: 0, cursor: 'col-resize', background: 'transparent', borderLeft: '1px solid #e5e5e5', borderRight: '1px solid #e5e5e5' }} title="拖动调整右栏宽度" />}
+          {win === 'full' && <div onMouseDown={(e) => startColResize('right', e)} style={{ width: 6, flexShrink: 0, cursor: 'col-resize', background: 'transparent', borderLeft: '1px solid #e5e5e5', borderRight: '1px solid #e5e5e5' }} title={t('resizeRight')} />}
 
           {/* 右栏：资料库 / 知识图谱 / 预览 */}
           <div style={{ width: win === 'full' ? rightW : '20%', flexShrink: 0, ...col, borderLeft: 'none' }}>
             <div style={{ display: 'flex', gap: 6, fontSize: 12 }}>
-              <button onClick={() => setTab('lore')} style={tab === 'lore' ? activeBtn : btn}>资料库</button>
-              <button onClick={() => void loadGraph()} style={tab === 'graph' ? activeBtn : btn}>知识图谱</button>
+              <button onClick={() => setTab('lore')} style={tab === 'lore' ? activeBtn : btn}>{t('lore')}</button>
+              <button onClick={() => void loadGraph()} style={tab === 'graph' ? activeBtn : btn}>{t('graph')}</button>
             </div>
             {tab === 'lore' && (
               <>
-                <button onClick={openLoreAdd} style={btn}>＋ 新建知识点</button>
+                <button onClick={openLoreAdd} style={btn}>{t('newLore')}</button>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                   {loreEntries.filter((e) => !e.book_id || e.book_id === selected).map((e) => (
                     <div key={e.id} style={{ border: '0.5px solid #e5e5e5', borderRadius: 8, padding: 8, fontSize: 13, opacity: e.enabled ? 1 : 0.55, background: e.enabled ? '#fff' : '#f7f7f7' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
                         <span style={{ fontWeight: 600, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.name}</span>
-                        <span style={{ fontSize: 11, color: e.enabled ? '#2f9e5b' : '#999', flexShrink: 0 }}>{e.enabled ? '启用' : '停用'}</span>
+                        <span style={{ fontSize: 11, color: e.enabled ? '#2f9e5b' : '#999', flexShrink: 0 }}>{e.enabled ? t('enable') : t('disable')}</span>
                       </div>
                       <div style={{ fontSize: 12, color: '#666', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: 6 }} title={e.content}>{e.content}</div>
                       <div style={{ display: 'flex', gap: 4 }}>
-                        <button onClick={() => setLorePreview(e)} style={btn}>预览</button>
-                        <button onClick={() => openLoreEdit(e)} style={btn}>编辑</button>
-                        <button onClick={() => void toggleEntry(e.id)} style={btn}>{e.enabled ? '停用' : '启用'}</button>
-                        <button onClick={() => void deleteEntry(e.id)} style={{ ...btn, color: '#c0392b', borderColor: '#e6b3ad' }}>删除</button>
+                        <button onClick={() => setLorePreview(e)} style={btn}>{t('preview')}</button>
+                        <button onClick={() => openLoreEdit(e)} style={btn}>{t('edit')}</button>
+                        <button onClick={() => void toggleEntry(e.id)} style={btn}>{e.enabled ? t('disable') : t('enable')}</button>
+                        <button onClick={() => void deleteEntry(e.id)} style={{ ...btn, color: '#c0392b', borderColor: '#e6b3ad' }}>{t('delete')}</button>
                       </div>
                     </div>
                   ))}
-                  {loreEntries.filter((e) => !e.book_id || e.book_id === selected).length === 0 && <div style={{ fontSize: 12, color: '#999', padding: 8 }}>暂无知识点，点击上方新建</div>}
+                  {loreEntries.filter((e) => !e.book_id || e.book_id === selected).length === 0 && <div style={{ fontSize: 12, color: '#999', padding: 8 }}>{t('noLore')}</div>}
                 </div>
               </>
             )}
-            {tab === 'graph' && (graph && graph.nodes?.length ? <GraphSvg graph={graph} /> : <div style={{ fontSize: 12, color: '#999', padding: 8 }}>尚未生成知识图谱。可在对话中调用 course_gen_knowledge_graph，或点击「知识图谱」重新加载。</div>)}
+            {tab === 'graph' && (graph && graph.nodes?.length ? <GraphSvg graph={graph} /> : <div style={{ fontSize: 12, color: '#999', padding: 8 }}>{t('noGraph')}</div>)}
           </div>
         </div>
       )}
@@ -605,15 +606,15 @@ export function WorkshopLayout({ api: base, fenceHeader, onClose }: Options & { 
       {showCreate && (
         <div style={{ position: 'absolute', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 12 }}>
           <div style={{ background: '#fff', borderRadius: 12, padding: 20, width: 360, boxShadow: '0 12px 48px rgba(0,0,0,0.3)' }}>
-            <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 14 }}>新建课程</div>
-            <label style={{ fontSize: 12, color: '#666', display: 'block', marginBottom: 4 }}>课程名称</label>
+            <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 14 }}>{t('createCourse')}</div>
+            <label style={{ fontSize: 12, color: '#666', display: 'block', marginBottom: 4 }}>{t('courseName')}</label>
             <input
               value={newTitle}
               onChange={(e) => setNewTitle(e.target.value)}
-              placeholder="输入课程名称"
+              placeholder={t('courseNamePlaceholder')}
               style={{ width: '100%', boxSizing: 'border-box', padding: '8px 10px', borderRadius: 6, border: '0.5px solid #ccc', fontSize: 13, marginBottom: 12 }}
             />
-            <label style={{ fontSize: 12, color: '#666', display: 'block', marginBottom: 4 }}>课程类型</label>
+            <label style={{ fontSize: 12, color: '#666', display: 'block', marginBottom: 4 }}>{t('courseType')}</label>
             <select value={newGenre} onChange={(e) => setNewGenre(e.target.value)} style={{ width: '100%', padding: '8px 10px', borderRadius: 6, border: '0.5px solid #ccc', fontSize: 13, marginBottom: 16 }}>
               {GENRE_GROUPS.map((g) => (
                 <optgroup key={g} label={g}>
@@ -622,8 +623,8 @@ export function WorkshopLayout({ api: base, fenceHeader, onClose }: Options & { 
               ))}
             </select>
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-              <button onClick={() => setShowCreate(false)} style={btn}>取消</button>
-              <button onClick={() => void confirmCreate()} disabled={!newTitle.trim()} style={{ ...btn, background: '#378add', borderColor: '#378add', color: '#fff' }}>创建</button>
+              <button onClick={() => setShowCreate(false)} style={btn}>{t('cancel')}</button>
+              <button onClick={() => void confirmCreate()} disabled={!newTitle.trim()} style={{ ...btn, background: '#378add', borderColor: '#378add', color: '#fff' }}>{t('create')}</button>
             </div>
           </div>
         </div>
@@ -632,15 +633,15 @@ export function WorkshopLayout({ api: base, fenceHeader, onClose }: Options & { 
       {showExport && (
         <div style={{ position: 'absolute', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 12 }}>
           <div style={{ background: '#fff', borderRadius: 12, padding: 20, width: 320, boxShadow: '0 12px 48px rgba(0,0,0,0.3)' }}>
-            <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 14 }}>导出课程</div>
-            <label style={{ fontSize: 12, color: '#666', display: 'block', marginBottom: 6 }}>格式</label>
+            <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 14 }}>{t('exportCourse')}</div>
+            <label style={{ fontSize: 12, color: '#666', display: 'block', marginBottom: 6 }}>{t('format')}</label>
             <div style={{ display: 'flex', gap: 8, marginBottom: 18 }}>
-              <button onClick={() => setExportFormat('txt')} style={exportFormat === 'txt' ? activeBtn : btn}>TXT 文本</button>
-              <button onClick={() => setExportFormat('word')} style={exportFormat === 'word' ? activeBtn : btn}>Word (.docx)</button>
+              <button onClick={() => setExportFormat('txt')} style={exportFormat === 'txt' ? activeBtn : btn}>{t('txtFormat')}</button>
+              <button onClick={() => setExportFormat('word')} style={exportFormat === 'word' ? activeBtn : btn}>{t('wordFormat')}</button>
             </div>
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-              <button onClick={() => setShowExport(false)} style={btn}>取消</button>
-              <button onClick={() => void doExport()} style={{ ...btn, background: '#378add', borderColor: '#378add', color: '#fff' }}>导出</button>
+              <button onClick={() => setShowExport(false)} style={btn}>{t('cancel')}</button>
+              <button onClick={() => void doExport()} style={{ ...btn, background: '#378add', borderColor: '#378add', color: '#fff' }}>{t('export')}</button>
             </div>
           </div>
         </div>
@@ -649,33 +650,33 @@ export function WorkshopLayout({ api: base, fenceHeader, onClose }: Options & { 
       {showShare && (
         <div style={{ position: 'absolute', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 12 }}>
           <div style={{ background: '#fff', borderRadius: 12, padding: 20, width: 400, boxShadow: '0 12px 48px rgba(0,0,0,0.3)', maxHeight: '82%', overflow: 'auto' }}>
-            <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 14 }}>分享课程</div>
-            <label style={{ fontSize: 12, color: '#666', display: 'block', marginBottom: 6 }}>权限</label>
+            <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 14 }}>{t('shareCourse')}</div>
+            <label style={{ fontSize: 12, color: '#666', display: 'block', marginBottom: 6 }}>{t('permission')}</label>
             <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-              <button onClick={() => setShareMode('read')} style={shareMode === 'read' ? activeBtn : btn}>只读查看</button>
-              <button onClick={() => setShareMode('write')} style={shareMode === 'write' ? activeBtn : btn}>可编辑协作</button>
+              <button onClick={() => setShareMode('read')} style={shareMode === 'read' ? activeBtn : btn}>{t('readOnly')}</button>
+              <button onClick={() => setShareMode('write')} style={shareMode === 'write' ? activeBtn : btn}>{t('editable')}</button>
             </div>
-            <button onClick={() => void createShare()} style={{ ...btn, background: '#378add', borderColor: '#378add', color: '#fff', width: '100%', marginBottom: 14 }}>生成分享链接</button>
+            <button onClick={() => void createShare()} style={{ ...btn, background: '#378add', borderColor: '#378add', color: '#fff', width: '100%', marginBottom: 14 }}>{t('generateLink')}</button>
             {shareLink && (
               <div style={{ marginBottom: 14 }}>
-                <div style={{ fontSize: 12, color: '#666', marginBottom: 4 }}>分享链接（新生成）</div>
+                <div style={{ fontSize: 12, color: '#666', marginBottom: 4 }}>{t('newLink')}</div>
                 <div style={{ display: 'flex', gap: 8 }}>
                   <input value={shareLink} readOnly style={{ flex: 1, padding: '6px 8px', borderRadius: 6, border: '0.5px solid #ccc', fontSize: 12 }} />
-                  <button onClick={() => void copyShare()} style={btn}>复制</button>
+                  <button onClick={() => void copyShare()} style={btn}>{t('copy')}</button>
                 </div>
               </div>
             )}
-            <div style={{ fontSize: 12, color: '#666', marginBottom: 4 }}>已生成的分享</div>
-            {shares.length === 0 && <div style={{ fontSize: 12, color: '#999' }}>暂无分享</div>}
+            <div style={{ fontSize: 12, color: '#666', marginBottom: 4 }}>{t('existingShares')}</div>
+            {shares.length === 0 && <div style={{ fontSize: 12, color: '#999' }}>{t('noShares')}</div>}
             {shares.map((s) => (
               <div key={s.token} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0', borderBottom: '0.5px solid #f0f0f0', fontSize: 12 }}>
                 <a href={`${location.origin}/share/${s.token}`} target="_blank" rel="noreferrer" style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: '#185fa5' }}>/share/{s.token}</a>
-                <span style={{ color: s.mode === 'write' ? '#ef9f27' : '#888', flexShrink: 0 }}>{s.mode === 'write' ? '可编辑' : '只读'}</span>
-                <button onClick={() => void revokeShare(s.token)} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: '#c33', fontSize: 12, flexShrink: 0 }}>撤销</button>
+                <span style={{ color: s.mode === 'write' ? '#ef9f27' : '#888', flexShrink: 0 }}>{s.mode === 'write' ? t('editableShort') : t('readOnlyShort')}</span>
+                <button onClick={() => void revokeShare(s.token)} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: '#c33', fontSize: 12, flexShrink: 0 }}>{t('revoke')}</button>
               </div>
             ))}
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 12 }}>
-              <button onClick={() => setShowShare(false)} style={btn}>关闭</button>
+              <button onClick={() => setShowShare(false)} style={btn}>{t('close')}</button>
             </div>
           </div>
         </div>
@@ -684,16 +685,16 @@ export function WorkshopLayout({ api: base, fenceHeader, onClose }: Options & { 
       {showLoreModal && (
         <div style={{ position: 'absolute', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 12 }}>
           <div style={{ background: '#fff', borderRadius: 12, padding: 20, width: 400, boxShadow: '0 12px 48px rgba(0,0,0,0.3)' }}>
-            <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 14 }}>{loreMode === 'add' ? '新建知识点' : '编辑知识点'}</div>
-            <label style={{ fontSize: 12, color: '#666', display: 'block', marginBottom: 4 }}>名称</label>
-            <input value={loreName} onChange={(e) => setLoreName(e.target.value)} placeholder="知识点名称" style={{ width: '100%', boxSizing: 'border-box', padding: '8px 10px', borderRadius: 6, border: '0.5px solid #ccc', fontSize: 13, marginBottom: 12 }} />
-            <label style={{ fontSize: 12, color: '#666', display: 'block', marginBottom: 4 }}>内容 / 定义</label>
-            <textarea value={loreContent} onChange={(e) => setLoreContent(e.target.value)} placeholder="知识点内容或定义" rows={6} style={{ width: '100%', boxSizing: 'border-box', padding: '8px 10px', borderRadius: 6, border: '0.5px solid #ccc', fontSize: 13, marginBottom: 12, resize: 'vertical' }} />
-            <label style={{ fontSize: 12, color: '#666', display: 'block', marginBottom: 4 }}>关键词（逗号分隔）</label>
-            <input value={loreKeywords} onChange={(e) => setLoreKeywords(e.target.value)} placeholder="如：发电, 锅炉, 蒸汽" style={{ width: '100%', boxSizing: 'border-box', padding: '8px 10px', borderRadius: 6, border: '0.5px solid #ccc', fontSize: 13, marginBottom: 16 }} />
+            <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 14 }}>{loreMode === 'add' ? t('newLoreTitle') : t('editLoreTitle')}</div>
+            <label style={{ fontSize: 12, color: '#666', display: 'block', marginBottom: 4 }}>{t('name')}</label>
+            <input value={loreName} onChange={(e) => setLoreName(e.target.value)} placeholder={t('loreNamePlaceholder')} style={{ width: '100%', boxSizing: 'border-box', padding: '8px 10px', borderRadius: 6, border: '0.5px solid #ccc', fontSize: 13, marginBottom: 12 }} />
+            <label style={{ fontSize: 12, color: '#666', display: 'block', marginBottom: 4 }}>{t('contentDef')}</label>
+            <textarea value={loreContent} onChange={(e) => setLoreContent(e.target.value)} placeholder={t('loreContentPlaceholder')} rows={6} style={{ width: '100%', boxSizing: 'border-box', padding: '8px 10px', borderRadius: 6, border: '0.5px solid #ccc', fontSize: 13, marginBottom: 12, resize: 'vertical' }} />
+            <label style={{ fontSize: 12, color: '#666', display: 'block', marginBottom: 4 }}>{t('keywords')}</label>
+            <input value={loreKeywords} onChange={(e) => setLoreKeywords(e.target.value)} placeholder={t('keywordsPlaceholder')} style={{ width: '100%', boxSizing: 'border-box', padding: '8px 10px', borderRadius: 6, border: '0.5px solid #ccc', fontSize: 13, marginBottom: 16 }} />
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-              <button onClick={() => setShowLoreModal(false)} style={btn}>取消</button>
-              <button onClick={() => void submitLore()} disabled={!loreName.trim()} style={{ ...btn, background: '#378add', borderColor: '#378add', color: '#fff' }}>{loreMode === 'add' ? '创建' : '保存'}</button>
+              <button onClick={() => setShowLoreModal(false)} style={btn}>{t('cancel')}</button>
+              <button onClick={() => void submitLore()} disabled={!loreName.trim()} style={{ ...btn, background: '#378add', borderColor: '#378add', color: '#fff' }}>{loreMode === 'add' ? t('create') : t('save')}</button>
             </div>
           </div>
         </div>
@@ -703,10 +704,10 @@ export function WorkshopLayout({ api: base, fenceHeader, onClose }: Options & { 
         <div style={{ position: 'absolute', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 12 }}>
           <div style={{ background: '#fff', borderRadius: 12, padding: 20, width: 440, maxHeight: '80%', display: 'flex', flexDirection: 'column', boxShadow: '0 12px 48px rgba(0,0,0,0.3)' }}>
             <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 4 }}>{lorePreview.name}</div>
-            <div style={{ fontSize: 12, color: '#999', marginBottom: 12 }}>{lorePreview.enabled ? '启用中' : '已停用'} · 关键词：{kwText(lorePreview.keywords) || '无'}</div>
+            <div style={{ fontSize: 12, color: '#999', marginBottom: 12 }}>{lorePreview.enabled ? t('enabledState') : t('disabledState')} · {t('keywordLabel')}：{kwText(lorePreview.keywords) || t('none')}</div>
             <div style={{ flex: 1, overflow: 'auto', fontSize: 13, lineHeight: 1.8, color: '#333', whiteSpace: 'pre-wrap', border: '0.5px solid #eee', borderRadius: 8, padding: 12 }}>{lorePreview.content}</div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 12 }}>
-              <button onClick={() => setLorePreview(null)} style={btn}>关闭</button>
+              <button onClick={() => setLorePreview(null)} style={btn}>{t('close')}</button>
             </div>
           </div>
         </div>

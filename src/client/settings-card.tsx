@@ -6,6 +6,7 @@
 import React, { useEffect, useState } from 'react'
 import type { SettingsScope } from '@deepseek-ai/dsh-client-runtime/client'
 import { readUiHidden, writeUiHidden } from './ui-hidden.ts'
+import { t } from './i18n.ts'
 
 export interface NovelSettingsCardProps {
   scope: SettingsScope<{ enabled: boolean; dataDir: string; uiHidden: boolean }>
@@ -58,7 +59,7 @@ export function NovelSettingsCard({ scope }: NovelSettingsCardProps): React.Reac
       checked: uiHidden,
       onChange: (e: React.ChangeEvent<HTMLInputElement>) => onToggleHidden(e.target.checked),
     }),
-    '隐藏侧边栏入口',
+    t('hideSidebar'),
   )
 
   // host settings 不可用（命名空间未暴露 / memory 模式）：降级为纯本地开关，不让用户卡住
@@ -66,7 +67,7 @@ export function NovelSettingsCard({ scope }: NovelSettingsCardProps): React.Reac
     return React.createElement(
       'div',
       { style: { padding: '12px', display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '13px' } },
-      React.createElement('div', { style: { fontWeight: 600 } }, '虾说教材写作'),
+      React.createElement('div', { style: { fontWeight: 600 } }, t('appName')),
       hiddenToggle,
     )
   }
@@ -74,7 +75,7 @@ export function NovelSettingsCard({ scope }: NovelSettingsCardProps): React.Reac
   return React.createElement(
     'div',
     { style: { padding: '12px', display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '13px' } },
-    React.createElement('div', { style: { fontWeight: 600 } }, '虾说教材写作'),
+    React.createElement('div', { style: { fontWeight: 600 } }, t('appName')),
     React.createElement(
       'label',
       { style: { display: 'flex', alignItems: 'center', gap: '8px' } },
@@ -83,12 +84,12 @@ export function NovelSettingsCard({ scope }: NovelSettingsCardProps): React.Reac
         checked: enabled,
         onChange: (e: React.ChangeEvent<HTMLInputElement>) => setEnabled(e.target.checked),
       }),
-      '启用（资料库注入 / 创作工具 / 技能）',
+      t('enableDesc'),
     ),
     React.createElement(
       'label',
       { style: { display: 'flex', flexDirection: 'column', gap: '4px' } },
-      '数据目录',
+      t('dataDir'),
       React.createElement('input', {
         type: 'text',
         value: dataDir,
@@ -108,9 +109,9 @@ export function NovelSettingsCard({ scope }: NovelSettingsCardProps): React.Reac
           disabled: saving,
           style: { padding: '4px 12px', borderRadius: '4px', border: '1px solid #888', cursor: 'pointer' },
         },
-        saving ? '保存中…' : '保存',
+        saving ? t('saving') : t('save'),
       ),
-      saved ? React.createElement('span', { style: { color: '#2a7' } }, '已保存') : null,
+      saved ? React.createElement('span', { style: { color: '#2a7' } }, t('savedNotice')) : null,
     ),
   )
 }

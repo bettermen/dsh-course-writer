@@ -1,3 +1,4 @@
+import { t } from './i18n.ts'
 /**
  * dsh-course-writer — 侧边栏入口（P1-I）。
  * DOM 级注入 + MutationObserver 自愈（task-board sidebar-entry 模式）：
@@ -29,14 +30,14 @@ function createEntry(onClick: () => void): HTMLButtonElement {
   const entry = document.createElement('button')
   entry.type = 'button'
   entry.dataset.dshCourseWriterEntry = ''
-  entry.title = '虾说教材写作'
-  entry.setAttribute('aria-label', '虾说教材写作')
+  entry.title = t('appName')
+  entry.setAttribute('aria-label', t('appName'))
   entry.style.cssText = [
     'display:flex', 'alignItems:center', 'gap:8px', 'width:100%',
     'padding:8px 12px', 'border:none', 'background:transparent',
     'cursor:pointer', 'fontSize:13px', 'color:inherit',
   ].join(';')
-  entry.innerHTML = `<span style="display:flex">${ICON}</span><span>虾说教材写作</span>`
+  entry.innerHTML = `<span style="display:flex">${ICON}</span><span>${t('appName')}</span>`
   entry.addEventListener('click', onClick)
   return entry
 }

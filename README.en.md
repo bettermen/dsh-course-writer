@@ -26,15 +26,15 @@ A web-novel creation plugin for [DeepSeek Harness](https://deepseek-harness.gith
 
 ## Install
 
-> Needs DSH installed (Windows/macOS/Linux; runtime Node ≥18). **Install only the LATEST release** (v0.1.7) — old v0.1.0/v0.1.1 fail to load with `requires options.key`.
+> Needs DSH installed (Windows/macOS/Linux; runtime Node ≥18). **Install only the LATEST release** (v0.3.0).
 
 ### A — Let an AI install it (recommended)
 Paste this to any command-capable AI:
 
-> Install the DSH plugin "虾说教材写作" (dsh-course-writer), **LATEST version only**. From `https://github.com/akira399/dsh-course-writer/releases/latest` download the newest `dsh-external-dsh-course-writer-*.tgz` (highest version; not v0.1.0/v0.1.1) → run `dsh plugin --profile web add <absolute tgz path>` → confirm with `dsh plugin list` → tell me to refresh the DSH page (Ctrl+Shift+R) so the sidebar entry appears. Report any error first.
+> Install the DSH plugin "虾说教材写作" (dsh-course-writer), **LATEST version only**. From `https://github.com/bettermen/dsh-course-writer/releases/latest` download the newest `dsh-external-dsh-course-writer-*.tgz` (highest version; not v0.1.0/v0.1.1) → run `dsh plugin --profile web add <absolute tgz path>` → confirm with `dsh plugin list` → tell me to refresh the DSH page (Ctrl+Shift+R) so the sidebar entry appears. Report any error first.
 
 ### B — Manual install
-Download the newest `dsh-external-dsh-course-writer-*.tgz` from https://github.com/akira399/dsh-course-writer/releases/latest, then:
+Download the newest `dsh-external-dsh-course-writer-*.tgz` from https://github.com/bettermen/dsh-course-writer/releases/latest, then:
 
 ```bash
 dsh plugin --profile web add <path-to-tgz>
@@ -45,9 +45,9 @@ dsh plugin list        # dsh-course-writer listed = success
 Needs Node ≥22 and Git:
 
 ```bash
-git clone https://github.com/akira399/dsh-course-writer.git && cd dsh-course-writer
+git clone https://github.com/bettermen/dsh-course-writer.git && cd dsh-course-writer
 npm install && npm run verify && npm run build && npm pack
-dsh plugin --profile web add ./dsh-external-dsh-course-writer-0.1.7.tgz
+dsh plugin --profile web add ./dsh-external-dsh-course-writer-0.3.0.tgz
 ```
 (Use Git Bash on Windows for the shell build script.)
 

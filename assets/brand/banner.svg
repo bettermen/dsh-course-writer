@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 320" width="1200" height="320" role="img" aria-label="虾说教材写作 — AI 教材写作工作台插件封面">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#243A61"/>
+      <stop offset="0.5" stop-color="#3D5D89"/>
+      <stop offset="1" stop-color="#6DC5F2"/>
+    </linearGradient>
+    <linearGradient id="page" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#EAF3FC"/>
+    </linearGradient>
+  </defs>
+
+  <!-- 背景 -->
+  <rect x="0" y="0" width="1200" height="320" fill="url(#bg)"/>
+
+  <!-- 背景波浪装饰 -->
+  <path d="M 0 270 Q 150 232 300 270 T 600 270 T 900 270 T 1200 270 V 320 H 0 Z" fill="#1E3156" opacity="0.45"/>
+  <path d="M 0 295 Q 160 262 320 295 T 640 295 T 960 295 T 1200 295 V 320 H 0 Z" fill="#182A4C" opacity="0.5"/>
+
+  <!-- 知识图谱节点连线装饰（右上） -->
+  <g stroke="#CFE8FF" stroke-width="2" opacity="0.55" fill="none">
+    <line x1="1030" y1="70" x2="1100" y2="110"/>
+    <line x1="1030" y1="70" x2="1080" y2="150"/>
+    <line x1="1030" y1="70" x2="960" y2="120"/>
+    <line x1="1100" y1="110" x2="1080" y2="150"/>
+  </g>
+  <g fill="#CFE8FF" opacity="0.75">
+    <circle cx="1030" cy="70" r="9"/>
+    <circle cx="1100" cy="110" r="7"/>
+    <circle cx="1080" cy="150" r="7"/>
+    <circle cx="960" cy="120" r="6"/>
+  </g>
+
+  <!-- 书本 / 教材装饰（左下） -->
+  <g transform="translate(120 190)">
+    <path d="M 0 0 Q 30 -14 60 0 L 60 80 Q 30 66 0 80 Z" fill="url(#page)" stroke="#9FCBEC" stroke-width="1.5"/>
+    <path d="M 60 0 Q 90 -14 120 0 L 120 80 Q 90 66 60 80 Z" fill="#FFFFFF" stroke="#9FCBEC" stroke-width="1.5"/>
+    <path d="M 60 0 L 60 80" stroke="#9FCBEC" stroke-width="1.5"/>
+    <line x1="12" y1="18" x2="48" y2="12" stroke="#B8D8F2" stroke-width="1.5"/>
+    <line x1="12" y1="30" x2="48" y2="24" stroke="#B8D8F2" stroke-width="1.5"/>
+    <line x1="72" y1="12" x2="108" y2="18" stroke="#B8D8F2" stroke-width="1.5"/>
+    <line x1="72" y1="24" x2="108" y2="30" stroke="#B8D8F2" stroke-width="1.5"/>
+  </g>
+
+  <!-- 品牌文字 -->
+  <text x="600" y="150" text-anchor="middle" font-family="'PingFang SC','Microsoft YaHei','Noto Sans CJK SC',sans-serif" font-size="78" font-weight="700" fill="#FFFFFF" letter-spacing="2">虾说教材写作</text>
+  <text x="600" y="216" text-anchor="middle" font-family="'PingFang SC','Microsoft YaHei','Noto Sans CJK SC',sans-serif" font-size="30" fill="#CFE8FF" letter-spacing="1">AI 教材写作工作台 · DeepSeek Harness 插件</text>
+  <text x="600" y="262" text-anchor="middle" font-family="'PingFang SC','Microsoft YaHei','Noto Sans CJK SC',sans-serif" font-size="19" fill="#9FCBEC" letter-spacing="1">九阶段门禁式编写 · 知识图谱可视化 · 出题/试卷生成 · 一键润色</text>
+</svg>

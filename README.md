@@ -110,15 +110,15 @@
 
 ## 📦 安装
 
-> 需已装 DSH（跨 Windows/macOS/Linux；运行时 Node ≥18）。**务必安装最新版**（当前 v0.1.7），旧版 v0.1.0/v0.1.1 会在部分宿主报 `requires options.key` 无法加载。
+> 需已装 DSH（跨 Windows/macOS/Linux；运行时 Node ≥18）。**务必安装最新版**（当前 v0.3.0）。
 
 ### ① 一句话让 AI 装（推荐）
 把下面这段发给能执行命令的 AI：
 
-> 帮我安装 DSH 插件「虾说教材写作」(dsh-course-writer)，**只装最新版**。步骤：从 `https://github.com/akira399/dsh-course-writer/releases/latest` 下载最新的 `dsh-external-dsh-course-writer-*.tgz`（版本号最大的那个；别下 v0.1.0/v0.1.1）→ 执行 `dsh plugin --profile web add <该 tgz 绝对路径>` → `dsh plugin list` 确认在列且已启用 → 提醒我刷新 DSH 页面（Ctrl+Shift+R）后侧边栏出现「虾说教材写作」。遇到报错先告诉我再处理。
+> 帮我安装 DSH 插件「虾说教材写作」(dsh-course-writer)，**只装最新版**。步骤：从 `https://github.com/bettermen/dsh-course-writer/releases/latest` 下载最新的 `dsh-external-dsh-course-writer-*.tgz`（版本号最大的那个）→ 执行 `dsh plugin --profile web add <该 tgz 绝对路径>` → `dsh plugin list` 确认在列且已启用 → 提醒我刷新 DSH 页面（Ctrl+Shift+R）后侧边栏出现「虾说教材写作」。遇到报错先告诉我再处理。
 
 ### ② 手动下载装
-从 https://github.com/akira399/dsh-course-writer/releases/latest 下载最新的 `dsh-external-dsh-course-writer-*.tgz`，然后：
+从 https://github.com/bettermen/dsh-course-writer/releases/latest 下载最新的 `dsh-external-dsh-course-writer-*.tgz`，然后：
 
 ```bash
 dsh plugin --profile web add <该文件路径>
@@ -129,9 +129,9 @@ dsh plugin list        # 看到 dsh-course-writer 即成功
 需 Node ≥22 与 Git：
 
 ```bash
-git clone https://github.com/akira399/dsh-course-writer.git && cd dsh-course-writer
+git clone https://github.com/bettermen/dsh-course-writer.git && cd dsh-course-writer
 npm install && npm run verify && npm run build && npm pack
-dsh plugin --profile web add ./dsh-external-dsh-course-writer-0.1.7.tgz
+dsh plugin --profile web add ./dsh-external-dsh-course-writer-0.3.0.tgz
 ```
 （Windows 用 Git Bash 跑构建脚本）
 

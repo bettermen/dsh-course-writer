@@ -4,6 +4,8 @@
 
 # 虾说教材写作（dsh-course-writer）
 
+> **AI course-authoring workspace plugin for [DeepSeek Harness](https://deepseek-harness.github.io/deepseek-harness/guide/quickstart) (DSH)** — three-pane workspace · nine-phase gated workflow · course/chapter/lorebook management · knowledge graph · TXT/Word export · share & collaborate.
+
 一个面向 [DeepSeek Harness](https://deepseek-harness.github.io/deepseek-harness/guide/quickstart)（DSH）的 **AI 教材写作工作台**插件：
 **三栏式界面 + 九阶段门禁式编写流程 + 课程/章节/资料库管理 + 导出（TXT/Word）+ 分享协作**。
 

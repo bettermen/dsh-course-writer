@@ -1,39 +1,97 @@
-# dsh-course-writer (Novel Workshop)
+<p align="center">
+  <img src="./assets/brand/banner.svg" alt="虾说教材写作 — AI Course-Authoring Workspace" width="100%">
+</p>
 
-A web-novel creation plugin for [DeepSeek Harness](https://deepseek-harness.github.io/deepseek-harness/guide/quickstart) (DSH):
-**nine-phase gated creation workflow + lorebook injection + AI-taste removal + golden-three-chapters diagnosis + million-word consistency + one-click chapter writing**.
+# 虾说教材写作 (dsh-course-writer)
+
+An **AI course-authoring workspace plugin** for [DeepSeek Harness](https://deepseek-harness.github.io/deepseek-harness/guide/quickstart) (DSH):
+**three-pane workspace + nine-phase gated workflow + course/chapter/lorebook management + TXT/Word export + share & collaborate**.
 
 - [中文](./README.md) | English
 
-## Features
+<p align="center">
+  <img src="./assets/brand/logo.png" alt="虾说教材写作 Logo" width="120">
+</p>
 
-| Capability | Description |
+Let DSH work with you like a professional curriculum author: from topic selection, learner analysis and learning objectives to lesson plans, exercises and assessment — every step is methodical, gated, verifiable and exportable, with a lorebook and knowledge graph that solidify the knowledge structure.
+
+---
+
+## ✨ Features
+
+### Three-pane workspace
+- **Left pane**: chapter list + nine-phase gated navigation (progress x/9, phase lock / in-progress / approved states)
+- **Center pane**: Markdown editor + split preview + chapter title editing + manual save / auto-save (2s after typing stops)
+- **Right pane**: lorebook (knowledge-point management) / knowledge graph (visualized knowledge structure)
+
+### Course management
+- **New course**: 23 course-type dropdown (general · subject · vocational · certification · hobbies)
+- **Rename / delete**: one-click, with delete confirmation
+
+### Lorebook (knowledge points)
+- Knowledge-point **create / edit / enable-disable / delete / preview** (modal form: name, content, keywords)
+- Comma-separated keywords, isolated per course
+
+### Knowledge graph
+- Visualizes course knowledge points and their relationships
+- Labels spread radially around nodes (no overlap); long labels truncated with hover-to-view
+
+### Export
+- **TXT** text export
+- **Word (.docx)** standard Office format (heading hierarchy + chapter styles)
+
+### Share & collaborate
+- Generate **read-only / editable** share links — others can open without logging in
+- Editable collaboration has **version history** and **conflict detection** (prompt to overwrite or load latest)
+
+### Nine-phase gated workflow
+`topic → learner analysis → learning objectives → outline → units → lesson plans → exercises → assessment`
+- **Phase gating**: cannot advance until the previous phase is approved
+- **Artifact versioning**: every submission is archived and revertible
+- **Audit log**: every operation is written to audit.jsonl
+
+### Window controls
+- Fullscreen / shrink to 50% (drag-resizable) / close
+- Three-pane widths drag-adjustable
+
+<p align="center">
+  <img src="./assets/screenshots/shot-gui.png" alt="虾说教材写作 three-pane workspace" width="820">
+</p>
+
+### 🎭 Course-authoring mode preset (agent preset)
+The plugin ships a **「虾说教材写作」agent preset**, selectable in DSH's new-session mode picker — picking it enters "course-authoring mode" instantly.
+
+**Three-channel coordination that constrains the model**:
+1. **Mode anchoring (preset)** — anchors the "curriculum author" persona;
+2. **Soft guidance (skill)** — the `course-writing-workflow` skill auto-registers on enabling and loads the full methodology;
+3. **Hard rails (tools)** — host-registered `course_*` / `lorebook_*` tools are available throughout; phase advance, submission, validation and chapter writing all go through tools.
+
+**Usage**: new session → preset picker → "虾说教材写作" → start creating; or it auto-syncs to `~/.dsh/.agent-presets/course-writer/` after install.
+
+---
+
+## 🎯 Use cases
+
+| Scenario | How |
 | --- | --- |
-| **Nine-phase workflow** | topic → setting → characters → outline → volumes → chapters → writing → revision → done; phase gating (no skipping), artifact versioning, audit log, revision rollback |
-| **Lorebook** | keyword/regex-triggered + always-active entries; groups & book binding; import from Operit / SillyTavern / character cards; injection token budget |
-| **Prompt front/back injection** | constant directives injected at the front/back of the context packet (unified scope model) |
-| **AI-taste detection & removal** | built-in 234-word, 5-category lexicon + density scoring + one-click rewrite via built-in prompts |
-| **Golden-three-chapters diagnosis** | offline rule layer (hook/opening/conflict/infodump/wordcount/dialogue) + optional model layer |
-| **Four-family validation** | structure/content/plot/consistency, run on commit (wordcount/title/forbidden words/POV/hook/brief coverage) |
-| **Million-word consistency** | fact ledger (auto-extracted from chapter JSONPatch) + timeline regression detection + overdue foreshadowing + sediment suggestions + consistency audit; budget-constant context packets (stress-tested: 1M words, 0 over-budget, 100% conflict coverage) |
-| **Per-chapter word stats** | auto stats on commit (total/CJK/dialogue ratio/sentence length) + target badge + book stats |
-| **Chapter context packet** | L1 book brief + L2 volume/chapter briefs & recent chapters + L3 summaries/variables/lorebook hits |
-| **Built-in prompt library** | 60 templates: creation/styles (8)/depolish/polish/diagnosis/guide/lorebook |
-| **Workshop assistant** | intent parsing (natural language → tool actions) + 5-step creation wizard |
-| **GUI** | sidebar "Novel Workshop" + drawer (projects/create/detail/one-click write/diagnosis/demo import) + settings card |
-| **Revision & export** | proofread/rhythm/style modes (diff stats, original kept); txt/markdown/platform export |
-| **Novel Creation Mode preset** | agent preset ("虾说教材写作") selectable when creating a new session — anchors the creation persona and auto-installs the `course-writing-workflow` skill + 41 `course_*`/`lorebook_*` tools (three-channel model: preset anchors the mode, skill guides the method, tools enforce the gated workflow). Zero setup: pick it in the new-session preset picker and start chatting ("create a xianxia novel project", "write the next chapter"). |
+| Write a new course from scratch | Open the workspace → "＋新建" → pick a course type → write chapter by chapter |
+| Already have an outline / knowledge points | Create the course, enter knowledge points into the lorebook, reference them in the text |
+| Team collaboration | "分享" generates an editable link; multi-author editing with conflict detection |
+| Deliver a Word document | "导出" → Word(.docx) one-click download |
+| Inspect the knowledge structure | Right pane "知识图谱" visualizes knowledge-point relationships |
 
-## Install
+---
 
-> Needs DSH installed (Windows/macOS/Linux; runtime Node ≥18). **Install only the LATEST release** (v0.3.0).
+## 📦 Install
 
-### A — Let an AI install it (recommended)
+> Requires DSH (Windows/macOS/Linux; runtime Node ≥18). **Install only the LATEST release** (currently v0.3.0).
+
+### ① Let an AI install it (recommended)
 Paste this to any command-capable AI:
 
-> Install the DSH plugin "虾说教材写作" (dsh-course-writer), **LATEST version only**. From `https://github.com/bettermen/dsh-course-writer/releases/latest` download the newest `dsh-external-dsh-course-writer-*.tgz` (highest version; not v0.1.0/v0.1.1) → run `dsh plugin --profile web add <absolute tgz path>` → confirm with `dsh plugin list` → tell me to refresh the DSH page (Ctrl+Shift+R) so the sidebar entry appears. Report any error first.
+> Install the DSH plugin "虾说教材写作" (dsh-course-writer), **LATEST version only**. From `https://github.com/bettermen/dsh-course-writer/releases/latest` download the newest `dsh-external-dsh-course-writer-*.tgz` (highest version) → run `dsh plugin --profile web add <absolute tgz path>` → confirm with `dsh plugin list` → tell me to refresh the DSH page (Ctrl+Shift+R) so the sidebar entry appears. Report any error first.
 
-### B — Manual install
+### ② Manual install
 Download the newest `dsh-external-dsh-course-writer-*.tgz` from https://github.com/bettermen/dsh-course-writer/releases/latest, then:
 
 ```bash
@@ -41,71 +99,116 @@ dsh plugin --profile web add <path-to-tgz>
 dsh plugin list        # dsh-course-writer listed = success
 ```
 
-### C — Build from source (advanced)
-Needs Node ≥22 and Git:
+### ③ Build from source (advanced)
+Requires Node ≥22 and Git:
 
 ```bash
 git clone https://github.com/bettermen/dsh-course-writer.git && cd dsh-course-writer
-npm install && npm run verify && npm run build && npm pack
+npm install && npm run build && npm pack
 dsh plugin --profile web add ./dsh-external-dsh-course-writer-0.3.0.tgz
 ```
-(Use Git Bash on Windows for the shell build script.)
 
 **After install**: the sidebar "虾说教材写作" entry and the settings card appear; if not, refresh/restart DSH and check the plugin is enabled.
 
-## Quick start
+---
 
-1. Open the drawer → "Import demo 《青云问道》" (or create your own project)
-2. Open project detail → "Write chapter" → the session writes from the context packet → review & save
-3. Or just chat: "create a fantasy novel project", "write the next chapter", "remove AI taste", "diagnose the opening"
+## 🚀 Quick start
 
-Data lives in `~/.dsh/dsh-course-writer/` by default.
+1. Open the sidebar "虾说教材写作" → "＋新建" → enter a course name + pick a course type
+2. Click chapters in the left pane to switch; write in the center pane (Markdown); auto-saves 2s after typing stops
+3. Right pane "资料库" to enter knowledge points (with keywords); "知识图谱" to view the structure
+4. Top "导出" to download TXT or Word; "分享" to generate a collaboration link
 
-## Feature usage guide
+Data lives in `~/.dsh/dsh-course-writer/` by default:
 
-Every capability is reachable two ways — the GUI drawer and plain chat. Example triggers:
-
-- **Create a book**: drawer "create" + pick a genre (27) · chat: "create a xianxia novel project"
-- **Walk the 9 phases**: chat "generate the worldbuilding", "design the characters", "submit the outline" → `course_phase` / `course_commit`
-- **Write a chapter**: drawer "一键写教案并保存" · chat: "write the next chapter"
-- **Polish + diff**: drawer "一键润色" → review marked changes → 确认保存 / 放弃还原; undo with the "↶ 撤销" button
-- **Worldbook (lorebook)**: drawer "本课程资料库" → "AI 一键生成设定" or "+ 新建条目"; import Operit/SillyTavern/character-card
-- **Import a local book**: drawer "导入本地课程" (txt/md) → auto-chapters & builds a book
-- **Quality checks**: drawer "结构诊断"; chat "把这章去 AI 味", "校验这章" → `course_validate`
-- **Consistency**: chat "跑一遍一致性巡检" → `course_consistency_audit`; "林远现在什么境界" → `course_ledger`; foreshadow/timeline via chat
-- **Revise & export**: chat "修订第 3 章查错别字" → `course_revise`; drawer "导出 txt" or chat "导出成稿"
-- **Market research & clone**: chat "调研下仙侠市场" → `course_market_research`; "以《青云问道》做模板开新课程" → `course_clone_project`
-- **Start a session**: new session → preset picker → "虾说教材写作" → just chat your intent
-
-Tip: you don't need to memorize commands — the creation-mode agent picks the right `course_*`/`lorebook_*` tool for you and asks for confirmation on writes. Ask "what can the workshop do?" anytime.
-
-## Interaction with DSH
-
-- **41 agent tools**: `course_*` + `lorebook_*` + `course_prompts`
-- **Two-phase chapter protocol**: `course_write_chapter` (context packet) → model writes → `course_commit_chapter` (stats/ledger/audit)
-- **Skill**: `course-writing-workflow`
-- **GUI API**: `/api/course-writer/*` (fence-header protected)
-
-## Security
-
-Local-only storage; audit-logged writes; LLM helper calls reuse the session's model route; GUI routes require a custom fence header; disabled plugin returns 503.
-
-## Known limitations
-
-- Model-layer features degrade to detection/rule layers when no model route is available
-- One-click chapter text backfill is best-effort (manual paste supported)
-- Scheduled serialization (browser cron) not yet implemented
-- Sediment suggestions require confirmation before writing to the lorebook
-
-## Development
-
-```bash
-npm run typecheck && npm test && npm run build
-node scripts/simulate-1m.mjs   # million-word consistency stress test
+```
+lorebook/       knowledge points (entries)
+projects/       projects (book.json + chapters/ + audit.jsonl + ...)
 ```
 
-Module discipline: one module → tests → review per step (see [docs/MODULE-LOG.md](./docs/MODULE-LOG.md)).
+---
 
-## License
+## 📖 Feature usage guide
+
+### 1️⃣ Create a course
+- Top "＋新建" → modal with course name + course-type dropdown (23 types, grouped) → create
+
+### 2️⃣ Write chapters
+- Left pane chapter list to switch; center pane edits Markdown
+- Chapter title editable (top input)
+- Save: click "保存", or auto-saves 2s after typing stops (status shows "● unsaved / ✓ saved")
+
+### 3️⃣ Lorebook (knowledge points)
+- Right pane "资料库" → "＋ 新建知识点" → name / content / keywords (comma-separated)
+- Each point supports **preview / edit / enable-disable / delete**
+- Isolated per course
+
+### 4️⃣ Knowledge graph
+- Right pane "知识图谱" → visualizes knowledge-point relationships
+- Labels spread radially (no overlap); hover to view full name
+
+### 5️⃣ Export
+- Top "导出" → choose **TXT** or **Word(.docx)** → download
+
+### 6️⃣ Share & collaborate
+- Top "分享" → choose permission (read-only / editable) → generate link → copy to others
+- Editable collaboration: saves carry a version number; conflicts prompt "overwrite or load latest"
+- Any share link can be revoked
+
+---
+
+## ⚙️ Configuration
+
+| Setting | Default | Description |
+| --- | --- | --- |
+| enabled | true | Plugin master switch (disable unregisters tools/skill; data kept) |
+| dataDir | `~/.dsh/dsh-course-writer` | Data root directory |
+| uiHidden | false | Hide the sidebar "虾说教材写作" entry |
+
+---
+
+## 🔌 Interaction with DSH
+
+- **agent tools**: `course_*` (project/phase/write/validate/export…) + `lorebook_*` (lorebook CRUD)
+- **skill**: `course-writing-workflow` (nine-phase methodology guidance)
+- **GUI API**: `/api/course-writer/*` (projects/chapters/export/share/lorebook, fence-header protected)
+
+---
+
+## ❓ FAQ
+
+**Q: Why doesn't saving jump back to chapter 1?**
+A: By design — saving stays on the current chapter and only refreshes the chapter list, for uninterrupted writing.
+
+**Q: Will I lose edits when switching chapters?**
+A: No. With unsaved changes, switching chapter/course or closing prompts for confirmation first.
+
+**Q: Are share links safe?**
+A: Shares go through an independent `/share/` path with token auth — the admin password is never exposed; links can be revoked anytime.
+
+**Q: Is the Word export a standard format?**
+A: Yes, standard `.docx` (zero-dependency generator), openable in Word / WPS / Google Docs with heading and chapter styles preserved.
+
+---
+
+## 🧪 Development
+
+```bash
+npm run typecheck   # host + client
+npm test            # vitest
+npm run build       # tsc host + tsdown client
+npm pack            # pack to tgz
+```
+
+---
+
+## 🛡 Security model
+
+- Local-only storage under `~/.dsh/dsh-course-writer/`, no network upload
+- All writes audit-logged
+- GUI routes carry a custom fence header (anti CSRF / DNS-rebinding)
+- Share endpoints use token auth + separate nginx pass-through; admin credentials never exposed
+
+## 📄 License
 
 MIT

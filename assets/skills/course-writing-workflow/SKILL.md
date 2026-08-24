@@ -1,7 +1,7 @@
 ---
 name: course-writing-workflow
-description: 通用课程编写全流程（九阶段门禁式）：选题→学情设定→教学目标→课程大纲→单元设计→课时教案→课件练习→评估修订→结课。使用 course_* 工具推进、lorebook_* 管理课程资料库，模型不得口头跳阶段。
-whenToUse: 用户要求开始编写课程、写教案、设定学情、生成大纲、设计教学目标、润色或诊断教案时。
+description: 通用课程编写全流程（九阶段门禁式）：选题→学情设定→教学目标→课程大纲→单元设计→课时教案→课件练习→评估修订→结课。使用 course_* 工具推进、lorebook_* 管理课程资料库，模型不得口头跳阶段。 — General nine-phase gated course-authoring workflow (topic → learner analysis → objectives → outline → units → lesson plans → courseware → assessment); advance via course_* tools, manage the lorebook via lorebook_*, never skip phases verbally.
+whenToUse: 用户要求开始编写课程、写教案、设定学情、生成大纲、设计教学目标、润色或诊断教案时。 — When the user asks to author a course, write lesson plans, set learner analysis, generate an outline, design objectives, or polish/diagnose lesson plans.
 ---
 
 # 课程编写工作流（dsh-course-writer）

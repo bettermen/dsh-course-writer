@@ -6,6 +6,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { GENRES } from '../core/genres.ts'
 import { t } from './i18n.ts'
+import { injectAppleStyles, useAppleScheme } from './apple-ui.ts'
 
 const GENRE_GROUPS = [...new Set(GENRES.map((g) => g.group))]
 
@@ -34,11 +35,11 @@ const PHASES: Array<{ id: string; label: string }> = [
 ]
 
 const PHASE_STATE: Record<string, { label: string; color: string }> = {
-  locked: { label: t('phaseLocked'), color: '#9a9a9a' },
-  in_progress: { label: t('phaseInProgress'), color: '#378add' },
-  review: { label: t('phaseReview'), color: '#ef9f27' },
-  approved: { label: t('phaseApproved'), color: '#2f9e5b' },
-  skipped: { label: t('phaseSkipped'), color: '#9a9a9a' },
+  locked: { label: t('phaseLocked'), color: 'var(--cw-tertiaryLabel)' },
+  in_progress: { label: t('phaseInProgress'), color: 'var(--cw-blue)' },
+  review: { label: t('phaseReview'), color: 'var(--cw-orange)' },
+  approved: { label: t('phaseApproved'), color: 'var(--cw-green)' },
+  skipped: { label: t('phaseSkipped'), color: 'var(--cw-tertiaryLabel)' },
 }
 
 function escapeHtml(s: string): string {
@@ -98,11 +99,11 @@ function GraphSvg({ graph }: { graph: Graph }): React.ReactElement {
       {edges.map((e, i) => {
         const a = pos.get(e.source); const b = pos.get(e.target)
         if (!a || !b) return null
-        return <line key={`e${i}`} x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke="#c8c8c8" strokeWidth={1.2} />
+        return <line key={`e${i}`} x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke="var(--cw-separator)" strokeWidth={1.2} />
       })}
       {nodes.map((n) => {
         const p = pos.get(n.id)!
-        const color = n.type === 'skill' ? '#378add' : n.type === 'case' ? '#ef9f27' : '#2f9e5b'
+        const color = n.type === 'skill' ? 'var(--cw-blue)' : n.type === 'case' ? 'var(--cw-orange)' : 'var(--cw-green)'
         const cos = Math.cos(p.angle)
         const sin = Math.sin(p.angle)
         // 标签沿节点外侧径向延伸（而非统一置顶），按角度选择锚点，避免相邻标签重叠
@@ -399,11 +400,15 @@ export function WorkshopLayout({ api: base, fenceHeader, onClose }: Options & { 
   const phases = book?.book.phases ?? {}
   const doneCount = PHASES.filter((p) => phases[p.id]?.state === 'approved' || phases[p.id]?.state === 'skipped').length
 
-  const col: React.CSSProperties = { display: 'flex', flexDirection: 'column', gap: 8, padding: 12, border: '0.5px solid #e5e5e5', borderRadius: 12, overflow: 'auto' }
-  const btn: React.CSSProperties = { padding: '5px 10px', borderRadius: 6, border: '0.5px solid #d0d0d0', background: '#f6f6f6', cursor: 'pointer', fontSize: 12 }
-  const activeBtn: React.CSSProperties = { ...btn, background: '#eef3fe', borderColor: '#378add', color: '#185fa5' }
+  const col: React.CSSProperties = { display: 'flex', flexDirection: 'column', gap: 10, padding: 12, overflow: 'auto' }
+  const btn: React.CSSProperties = { padding: '5px 10px', borderRadius: 6, border: '0.5px solid var(--cw-separator)', background: 'var(--cw-tertiaryBg)', cursor: 'pointer', fontSize: 12 }
+  const activeBtn: React.CSSProperties = { ...btn, background: 'var(--cw-secondaryBg)', borderColor: 'var(--cw-blue)', color: 'var(--cw-blue)' }
 
   const previewHtml = useMemo(() => renderMarkdown(draft), [draft])
+
+  // Apple 设计系统：订阅系统深浅色（自动外观）+ 注入样式表（幂等）
+  const scheme = useAppleScheme()
+  useEffect(() => { injectAppleStyles() }, [])
 
   // 缩小窗口的左下角拖拽缩放：右上角固定，向左拖变宽、向下拖变高。
   const startResize = (e: React.MouseEvent): void => {
@@ -455,26 +460,26 @@ export function WorkshopLayout({ api: base, fenceHeader, onClose }: Options & { 
   }
 
   const rootStyle: React.CSSProperties = win === 'full'
-    ? { position: 'fixed', inset: 0, zIndex: 99999, background: '#fff', display: 'flex', flexDirection: 'column', fontFamily: 'system-ui, -apple-system, sans-serif', color: '#222', pointerEvents: 'auto' }
-    : { position: 'fixed', width: halfSize.w, height: halfSize.h, right: 16, top: 16, zIndex: 99999, background: '#fff', display: 'flex', flexDirection: 'column', fontFamily: 'system-ui, -apple-system, sans-serif', color: '#222', borderRadius: 12, border: '0.5px solid #ccc', boxShadow: '0 12px 48px rgba(0,0,0,0.25)', pointerEvents: 'auto' }
+    ? { position: 'fixed', inset: 0, zIndex: 99999, background: 'var(--cw-bg)', display: 'flex', flexDirection: 'column', fontFamily: 'var(--cw-font)', color: 'var(--cw-label)', pointerEvents: 'auto' }
+    : { position: 'fixed', width: halfSize.w, height: halfSize.h, right: 16, top: 16, zIndex: 99999, background: 'var(--cw-bg)', display: 'flex', flexDirection: 'column', fontFamily: 'var(--cw-font)', color: 'var(--cw-label)', borderRadius: 12, border: '0.5px solid var(--cw-separator)', boxShadow: '0 12px 48px rgba(0,0,0,0.25)', pointerEvents: 'auto' }
 
   return (
-    <div style={rootStyle}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 16px', borderBottom: '0.5px solid #e5e5e5' }}>
+    <div className="cw-root" data-theme={scheme} style={rootStyle}>
+      <div className="cw-glass" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 16px', borderBottom: '0.5px solid var(--cw-separator)' }}>
         <span style={{ fontWeight: 600, fontSize: 15 }}>{t('appName')}</span>
-        <select value={selected} onChange={(e) => void select(e.target.value)} style={{ padding: '4px 8px', borderRadius: 6, border: '0.5px solid #ccc', fontSize: 13 }}>
+        <select value={selected} onChange={(e) => void select(e.target.value)} className="cw-input" style={{ width: 'auto', minWidth: 150 }}>
           {projects.map((p) => <option key={p.id} value={p.id}>{p.title}</option>)}
         </select>
-        <button onClick={openCreate} style={btn}>{t('newProject')}</button>
-        <button onClick={() => void renameProject()} disabled={!selected} style={btn}>{t('rename')}</button>
-        <button onClick={() => void deleteProject()} disabled={!selected} style={{ ...btn, color: '#c0392b', borderColor: '#e6b3ad' }}>{t('delete')}</button>
-        <button onClick={() => setShowExport(true)} disabled={!selected} style={btn}>{t('export')}</button>
-        <button onClick={() => void openShare()} disabled={!selected} style={btn}>{t('share')}</button>
+        <button onClick={openCreate} className="cw-btn cw-btn-sm">{t('newProject')}</button>
+        <button onClick={() => void renameProject()} disabled={!selected} className="cw-btn cw-btn-sm">{t('rename')}</button>
+        <button onClick={() => void deleteProject()} disabled={!selected} className="cw-btn cw-btn-sm cw-btn-danger">{t('delete')}</button>
+        <button onClick={() => setShowExport(true)} disabled={!selected} className="cw-btn cw-btn-sm">{t('export')}</button>
+        <button onClick={() => void openShare()} disabled={!selected} className="cw-btn cw-btn-sm">{t('share')}</button>
         <span style={{ flex: 1 }} />
-        {notice && <span style={{ fontSize: 12, color: '#2f9e5b' }}>{notice}</span>}
-        <button onClick={shrinkToHalf} disabled={win === 'half'} style={btn}>{t('shrinkHalf')}</button>
-        <button onClick={() => setWin('full')} disabled={win === 'full'} style={btn}>{t('fullscreen')}</button>
-        <button onClick={handleClose} style={btn}>{t('close')}</button>
+        {notice && <span style={{ fontSize: 12, color: 'var(--cw-green)' }}>{notice}</span>}
+        <button onClick={shrinkToHalf} disabled={win === 'half'} className="cw-btn cw-btn-sm">{t('shrinkHalf')}</button>
+        <button onClick={() => setWin('full')} disabled={win === 'full'} className="cw-btn cw-btn-sm">{t('fullscreen')}</button>
+        <button onClick={handleClose} className="cw-btn cw-btn-sm">{t('close')}</button>
       </div>
 
       {win === 'half' && (
@@ -489,27 +494,27 @@ export function WorkshopLayout({ api: base, fenceHeader, onClose }: Options & { 
         </div>
       )}
 
-      {loading ? <div style={{ padding: 24, color: '#888', fontSize: 13 }}>{t('loading')}</div> : error ? <div style={{ padding: 24, color: '#c33', fontSize: 13 }}>{error}</div> : (
+      {loading ? <div style={{ padding: 24, color: 'var(--cw-secondaryLabel)', fontSize: 13 }}>{t('loading')}</div> : error ? <div style={{ padding: 24, color: '#c33', fontSize: 13 }}>{error}</div> : (
         <div style={{ flex: 1, display: 'flex', gap: 0, minHeight: 0 }}>
           {/* 左栏：章节 / 阶段 双视图 */}
-          <div style={{ width: win === 'full' ? leftW : '20%', flexShrink: 0, ...col, borderRight: 'none' }}>
-            <div style={{ display: 'flex', gap: 6 }}>
-              <button onClick={() => setLeftTab('chapters')} style={leftTab === 'chapters' ? activeBtn : btn}>{t('chapters')}</button>
-              <button onClick={() => setLeftTab('phases')} style={leftTab === 'phases' ? activeBtn : btn}>{t('phases')}</button>
+          <div className="cw-scroll" style={{ width: win === 'full' ? leftW : '20%', flexShrink: 0, ...col, borderRight: 'none' }}>
+            <div className="cw-segmented">
+              <button onClick={() => setLeftTab('chapters')} className={leftTab === 'chapters' ? 'cw-seg-item is-active' : 'cw-seg-item'}>{t('chapters')}</button>
+              <button onClick={() => setLeftTab('phases')} className={leftTab === 'phases' ? 'cw-seg-item is-active' : 'cw-seg-item'}>{t('phases')}</button>
             </div>
             {leftTab === 'chapters' ? (
               <>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span style={{ fontSize: 12, color: '#888', fontWeight: 500 }}>{t('chapters')}</span>
-                  <button onClick={() => void loadChapter(selected, chapters.length + 1)} style={btn}>{t('newLesson')}</button>
+                  <span style={{ fontSize: 12, color: 'var(--cw-secondaryLabel)', fontWeight: 500 }}>{t('chapters')}</span>
+                  <button onClick={() => void loadChapter(selected, chapters.length + 1)} className="cw-btn cw-btn-sm">{t('newLesson')}</button>
                 </div>
                 {chapters.map((c) => (
-                  <div key={c.no} onClick={() => void loadChapter(selected, c.no)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 8px', borderRadius: 6, background: chapterNo === c.no ? '#f2f6ff' : 'transparent', fontSize: 13, cursor: 'pointer' }}>
-                    <span style={{ fontSize: 11, color: '#888', flexShrink: 0 }}>{c.no}</span>
+                  <div key={c.no} onClick={() => void loadChapter(selected, c.no)} className={chapterNo === c.no ? 'cw-list-item is-selected' : 'cw-list-item'} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 8px', fontSize: 13, cursor: 'pointer' }}>
+                    <span style={{ fontSize: 11, color: 'var(--cw-secondaryLabel)', flexShrink: 0 }}>{c.no}</span>
                     <span style={{ flex: 1, fontWeight: chapterNo === c.no ? 600 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.title || `第 ${c.no} 课`}</span>
                   </div>
                 ))}
-                {chapters.length === 0 && <div style={{ fontSize: 12, color: '#999', padding: 8 }}>{t('noChapters')}</div>}
+                {chapters.length === 0 && <div style={{ fontSize: 12, color: 'var(--cw-tertiaryLabel)', padding: 8 }}>{t('noChapters')}</div>}
               </>
             ) : (
               <>
@@ -518,104 +523,106 @@ export function WorkshopLayout({ api: base, fenceHeader, onClose }: Options & { 
                   const info = PHASE_STATE[st] ?? PHASE_STATE.locked!
                   const current = book?.book.currentPhase === p.id
                   return (
-                    <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 8px', borderRadius: 6, background: current ? '#f2f6ff' : 'transparent', fontSize: 13 }}>
+                    <div key={p.id} className={current ? 'cw-list-item is-selected' : 'cw-list-item'} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 8px', fontSize: 13 }}>
                       <span style={{ width: 8, height: 8, borderRadius: '50%', background: info.color, flexShrink: 0 }} />
                       <span style={{ flex: 1, fontWeight: current ? 600 : 400 }}>{p.label}</span>
                       <span style={{ fontSize: 11, color: info.color }}>{info.label}</span>
                     </div>
                   )
                 })}
-                <div style={{ marginTop: 'auto', fontSize: 12, color: '#888' }}>{t('progress')} {doneCount}/9 {t('phasesUnit')}</div>
+                <div style={{ marginTop: 'auto', fontSize: 12, color: 'var(--cw-secondaryLabel)' }}>{t('progress')} {doneCount}/9 {t('phasesUnit')}</div>
               </>
             )}
           </div>
 
-          {win === 'full' && <div onMouseDown={(e) => startColResize('left', e)} style={{ width: 6, flexShrink: 0, cursor: 'col-resize', background: 'transparent', borderLeft: '1px solid #e5e5e5', borderRight: '1px solid #e5e5e5' }} title={t('resizeLeft')} />}
+          {win === 'full' && <div onMouseDown={(e) => startColResize('left', e)} className="cw-resizer" style={{ width: 6, borderLeft: '1px solid var(--cw-separator)', borderRight: '1px solid var(--cw-separator)' }} title={t('resizeLeft')} />}
 
           {/* 中栏：编辑区 */}
-          <div style={{ flex: win === 'full' ? 1 : '0 0 60%', ...col, minWidth: 0 }}>
+          <div className="cw-scroll" style={{ flex: win === 'full' ? 1 : '0 0 60%', ...col, minWidth: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <span style={{ fontWeight: 600, fontSize: 14, flexShrink: 0 }}>{book?.book.title ?? ''}</span>
               <input
                 value={chapterTitle}
                 onChange={(e) => setChapterTitle(e.target.value)}
                 placeholder={`${t('lessonPrefix')}${chapterNo}${t('lessonSuffix')}`}
-                style={{ width: '100%', minWidth: 60, maxWidth: 260, padding: '5px 8px', borderRadius: 6, border: '0.5px solid #ccc', fontSize: 13 }}
+                className="cw-input" style={{ minWidth: 60, maxWidth: 260 }}
               />
               <span style={{ flex: 1 }} />
-              <button onClick={() => setViewMode('edit')} style={viewMode === 'edit' ? activeBtn : btn}>{t('edit')}</button>
-              <button onClick={() => setViewMode('preview')} style={viewMode === 'preview' ? activeBtn : btn}>{t('preview')}</button>
-              <button onClick={() => void save()} style={{ ...btn, borderColor: '#378add', color: '#185fa5', background: '#eef3fe' }}>{t('save')}</button>
+              <div className="cw-segmented">
+                <button onClick={() => setViewMode('edit')} className={viewMode === 'edit' ? 'cw-seg-item is-active' : 'cw-seg-item'}>{t('edit')}</button>
+                <button onClick={() => setViewMode('preview')} className={viewMode === 'preview' ? 'cw-seg-item is-active' : 'cw-seg-item'}>{t('preview')}</button>
+              </div>
+              <button onClick={() => void save()} className="cw-btn cw-btn-sm cw-btn-primary">{t('save')}</button>
             </div>
             <div style={{ flex: 1, display: 'flex', gap: 8, minHeight: 0 }}>
               {viewMode !== 'preview' && (
                 <textarea
                   value={draft}
                   onChange={(e) => { setDraft(e.target.value); setDirty(true) }}
-                  style={{ flex: 1, width: '100%', minHeight: 0, padding: 12, border: '0.5px solid #e5e5e5', borderRadius: 8, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: 13, lineHeight: 1.7, resize: 'none', boxSizing: 'border-box' }}
+                  className="cw-textarea" style={{ flex: 1, minHeight: 0, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', lineHeight: 1.7, resize: 'none' }}
                   placeholder={t('editorPlaceholder')}
                 />
               )}
               {viewMode !== 'edit' && (
-                <div style={{ flex: 1, width: '100%', padding: 12, border: '0.5px solid #e5e5e5', borderRadius: 8, overflow: 'auto', fontSize: 13, lineHeight: 1.7, background: '#fafafa' }} dangerouslySetInnerHTML={{ __html: previewHtml }} />
+                <div className="cw-card cw-scroll" style={{ flex: 1, padding: 12, fontSize: 13, lineHeight: 1.7, background: 'var(--cw-tertiaryBg)' }} dangerouslySetInnerHTML={{ __html: previewHtml }} />
               )}
             </div>
-            <div style={{ display: 'flex', gap: 16, fontSize: 12, color: '#888' }}>
+            <div style={{ display: 'flex', gap: 16, fontSize: 12, color: 'var(--cw-secondaryLabel)' }}>
               <span>{t('wordCount')} {draft.length}</span>
               <span>{book?.book.stats.totalWords ?? 0} {t('totalWords')}</span>
-              <span style={{ color: dirty ? '#ef9f27' : '#2f9e5b' }}>{dirty ? t('unsaved') : t('saved')}</span>
+              <span style={{ color: dirty ? 'var(--cw-orange)' : 'var(--cw-green)' }}>{dirty ? t('unsaved') : t('saved')}</span>
             </div>
           </div>
 
-          {win === 'full' && <div onMouseDown={(e) => startColResize('right', e)} style={{ width: 6, flexShrink: 0, cursor: 'col-resize', background: 'transparent', borderLeft: '1px solid #e5e5e5', borderRight: '1px solid #e5e5e5' }} title={t('resizeRight')} />}
+          {win === 'full' && <div onMouseDown={(e) => startColResize('right', e)} className="cw-resizer" style={{ width: 6, borderLeft: '1px solid var(--cw-separator)', borderRight: '1px solid var(--cw-separator)' }} title={t('resizeRight')} />}
 
           {/* 右栏：资料库 / 知识图谱 / 预览 */}
-          <div style={{ width: win === 'full' ? rightW : '20%', flexShrink: 0, ...col, borderLeft: 'none' }}>
-            <div style={{ display: 'flex', gap: 6, fontSize: 12 }}>
-              <button onClick={() => setTab('lore')} style={tab === 'lore' ? activeBtn : btn}>{t('lore')}</button>
-              <button onClick={() => void loadGraph()} style={tab === 'graph' ? activeBtn : btn}>{t('graph')}</button>
+          <div className="cw-scroll" style={{ width: win === 'full' ? rightW : '20%', flexShrink: 0, ...col, borderLeft: 'none' }}>
+            <div className="cw-segmented">
+              <button onClick={() => setTab('lore')} className={tab === 'lore' ? 'cw-seg-item is-active' : 'cw-seg-item'}>{t('lore')}</button>
+              <button onClick={() => void loadGraph()} className={tab === 'graph' ? 'cw-seg-item is-active' : 'cw-seg-item'}>{t('graph')}</button>
             </div>
             {tab === 'lore' && (
               <>
-                <button onClick={openLoreAdd} style={btn}>{t('newLore')}</button>
+                <button onClick={openLoreAdd} className="cw-btn cw-btn-sm">{t('newLore')}</button>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                   {loreEntries.filter((e) => !e.book_id || e.book_id === selected).map((e) => (
-                    <div key={e.id} style={{ border: '0.5px solid #e5e5e5', borderRadius: 8, padding: 8, fontSize: 13, opacity: e.enabled ? 1 : 0.55, background: e.enabled ? '#fff' : '#f7f7f7' }}>
+                    <div key={e.id} className="cw-card" style={{ padding: 10, fontSize: 13, opacity: e.enabled ? 1 : 0.55 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
                         <span style={{ fontWeight: 600, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.name}</span>
-                        <span style={{ fontSize: 11, color: e.enabled ? '#2f9e5b' : '#999', flexShrink: 0 }}>{e.enabled ? t('enable') : t('disable')}</span>
+                        <span style={{ fontSize: 11, color: e.enabled ? 'var(--cw-green)' : 'var(--cw-tertiaryLabel)', flexShrink: 0 }}>{e.enabled ? t('enable') : t('disable')}</span>
                       </div>
-                      <div style={{ fontSize: 12, color: '#666', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: 6 }} title={e.content}>{e.content}</div>
+                      <div style={{ fontSize: 12, color: 'var(--cw-secondaryLabel)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: 6 }} title={e.content}>{e.content}</div>
                       <div style={{ display: 'flex', gap: 4 }}>
-                        <button onClick={() => setLorePreview(e)} style={btn}>{t('preview')}</button>
-                        <button onClick={() => openLoreEdit(e)} style={btn}>{t('edit')}</button>
-                        <button onClick={() => void toggleEntry(e.id)} style={btn}>{e.enabled ? t('disable') : t('enable')}</button>
-                        <button onClick={() => void deleteEntry(e.id)} style={{ ...btn, color: '#c0392b', borderColor: '#e6b3ad' }}>{t('delete')}</button>
+                        <button onClick={() => setLorePreview(e)} className="cw-btn cw-btn-sm">{t('preview')}</button>
+                        <button onClick={() => openLoreEdit(e)} className="cw-btn cw-btn-sm">{t('edit')}</button>
+                        <button onClick={() => void toggleEntry(e.id)} className="cw-btn cw-btn-sm">{e.enabled ? t('disable') : t('enable')}</button>
+                        <button onClick={() => void deleteEntry(e.id)} className="cw-btn cw-btn-sm cw-btn-danger">{t('delete')}</button>
                       </div>
                     </div>
                   ))}
-                  {loreEntries.filter((e) => !e.book_id || e.book_id === selected).length === 0 && <div style={{ fontSize: 12, color: '#999', padding: 8 }}>{t('noLore')}</div>}
+                  {loreEntries.filter((e) => !e.book_id || e.book_id === selected).length === 0 && <div style={{ fontSize: 12, color: 'var(--cw-tertiaryLabel)', padding: 8 }}>{t('noLore')}</div>}
                 </div>
               </>
             )}
-            {tab === 'graph' && (graph && graph.nodes?.length ? <GraphSvg graph={graph} /> : <div style={{ fontSize: 12, color: '#999', padding: 8 }}>{t('noGraph')}</div>)}
+            {tab === 'graph' && (graph && graph.nodes?.length ? <GraphSvg graph={graph} /> : <div style={{ fontSize: 12, color: 'var(--cw-tertiaryLabel)', padding: 8 }}>{t('noGraph')}</div>)}
           </div>
         </div>
       )}
 
       {showCreate && (
-        <div style={{ position: 'absolute', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 12 }}>
-          <div style={{ background: '#fff', borderRadius: 12, padding: 20, width: 360, boxShadow: '0 12px 48px rgba(0,0,0,0.3)' }}>
+        <div className="cw-modal-backdrop" style={{ borderRadius: 12 }}>
+          <div className="cw-modal" style={{ width: 360 }}>
             <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 14 }}>{t('createCourse')}</div>
-            <label style={{ fontSize: 12, color: '#666', display: 'block', marginBottom: 4 }}>{t('courseName')}</label>
+            <label style={{ fontSize: 12, color: 'var(--cw-secondaryLabel)', display: 'block', marginBottom: 4 }}>{t('courseName')}</label>
             <input
               value={newTitle}
               onChange={(e) => setNewTitle(e.target.value)}
               placeholder={t('courseNamePlaceholder')}
-              style={{ width: '100%', boxSizing: 'border-box', padding: '8px 10px', borderRadius: 6, border: '0.5px solid #ccc', fontSize: 13, marginBottom: 12 }}
+              className="cw-input" style={{ marginBottom: 12 }}
             />
-            <label style={{ fontSize: 12, color: '#666', display: 'block', marginBottom: 4 }}>{t('courseType')}</label>
-            <select value={newGenre} onChange={(e) => setNewGenre(e.target.value)} style={{ width: '100%', padding: '8px 10px', borderRadius: 6, border: '0.5px solid #ccc', fontSize: 13, marginBottom: 16 }}>
+            <label style={{ fontSize: 12, color: 'var(--cw-secondaryLabel)', display: 'block', marginBottom: 4 }}>{t('courseType')}</label>
+            <select value={newGenre} onChange={(e) => setNewGenre(e.target.value)} className="cw-input" style={{ marginBottom: 16 }}>
               {GENRE_GROUPS.map((g) => (
                 <optgroup key={g} label={g}>
                   {GENRES.filter((x) => x.group === g).map((x) => <option key={x.id} value={x.id}>{x.label}</option>)}
@@ -623,91 +630,93 @@ export function WorkshopLayout({ api: base, fenceHeader, onClose }: Options & { 
               ))}
             </select>
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-              <button onClick={() => setShowCreate(false)} style={btn}>{t('cancel')}</button>
-              <button onClick={() => void confirmCreate()} disabled={!newTitle.trim()} style={{ ...btn, background: '#378add', borderColor: '#378add', color: '#fff' }}>{t('create')}</button>
+              <button onClick={() => setShowCreate(false)} className="cw-btn cw-btn-sm">{t('cancel')}</button>
+              <button onClick={() => void confirmCreate()} disabled={!newTitle.trim()} className="cw-btn cw-btn-sm cw-btn-primary">{t('create')}</button>
             </div>
           </div>
         </div>
       )}
 
       {showExport && (
-        <div style={{ position: 'absolute', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 12 }}>
-          <div style={{ background: '#fff', borderRadius: 12, padding: 20, width: 320, boxShadow: '0 12px 48px rgba(0,0,0,0.3)' }}>
+        <div className="cw-modal-backdrop" style={{ borderRadius: 12 }}>
+          <div className="cw-modal" style={{ width: 320 }}>
             <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 14 }}>{t('exportCourse')}</div>
-            <label style={{ fontSize: 12, color: '#666', display: 'block', marginBottom: 6 }}>{t('format')}</label>
+            <label style={{ fontSize: 12, color: 'var(--cw-secondaryLabel)', display: 'block', marginBottom: 6 }}>{t('format')}</label>
             <div style={{ display: 'flex', gap: 8, marginBottom: 18 }}>
-              <button onClick={() => setExportFormat('txt')} style={exportFormat === 'txt' ? activeBtn : btn}>{t('txtFormat')}</button>
-              <button onClick={() => setExportFormat('word')} style={exportFormat === 'word' ? activeBtn : btn}>{t('wordFormat')}</button>
+              <div className="cw-segmented">
+                <button onClick={() => setExportFormat('txt')} className={exportFormat === 'txt' ? 'cw-seg-item is-active' : 'cw-seg-item'}>{t('txtFormat')}</button>
+                <button onClick={() => setExportFormat('word')} className={exportFormat === 'word' ? 'cw-seg-item is-active' : 'cw-seg-item'}>{t('wordFormat')}</button>
+              </div>
             </div>
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-              <button onClick={() => setShowExport(false)} style={btn}>{t('cancel')}</button>
-              <button onClick={() => void doExport()} style={{ ...btn, background: '#378add', borderColor: '#378add', color: '#fff' }}>{t('export')}</button>
+              <button onClick={() => setShowExport(false)} className="cw-btn cw-btn-sm">{t('cancel')}</button>
+              <button onClick={() => void doExport()} className="cw-btn cw-btn-sm cw-btn-primary">{t('export')}</button>
             </div>
           </div>
         </div>
       )}
 
       {showShare && (
-        <div style={{ position: 'absolute', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 12 }}>
-          <div style={{ background: '#fff', borderRadius: 12, padding: 20, width: 400, boxShadow: '0 12px 48px rgba(0,0,0,0.3)', maxHeight: '82%', overflow: 'auto' }}>
+        <div className="cw-modal-backdrop" style={{ borderRadius: 12 }}>
+          <div className="cw-modal" style={{ width: 400, maxHeight: '82%', overflow: 'auto' }}>
             <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 14 }}>{t('shareCourse')}</div>
-            <label style={{ fontSize: 12, color: '#666', display: 'block', marginBottom: 6 }}>{t('permission')}</label>
+            <label style={{ fontSize: 12, color: 'var(--cw-secondaryLabel)', display: 'block', marginBottom: 6 }}>{t('permission')}</label>
             <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
               <button onClick={() => setShareMode('read')} style={shareMode === 'read' ? activeBtn : btn}>{t('readOnly')}</button>
               <button onClick={() => setShareMode('write')} style={shareMode === 'write' ? activeBtn : btn}>{t('editable')}</button>
             </div>
-            <button onClick={() => void createShare()} style={{ ...btn, background: '#378add', borderColor: '#378add', color: '#fff', width: '100%', marginBottom: 14 }}>{t('generateLink')}</button>
+            <button onClick={() => void createShare()} className="cw-btn cw-btn-primary" style={{ width: '100%', marginBottom: 14 }}>{t('generateLink')}</button>
             {shareLink && (
               <div style={{ marginBottom: 14 }}>
-                <div style={{ fontSize: 12, color: '#666', marginBottom: 4 }}>{t('newLink')}</div>
+                <div style={{ fontSize: 12, color: 'var(--cw-secondaryLabel)', marginBottom: 4 }}>{t('newLink')}</div>
                 <div style={{ display: 'flex', gap: 8 }}>
-                  <input value={shareLink} readOnly style={{ flex: 1, padding: '6px 8px', borderRadius: 6, border: '0.5px solid #ccc', fontSize: 12 }} />
-                  <button onClick={() => void copyShare()} style={btn}>{t('copy')}</button>
+                  <input value={shareLink} readOnly className="cw-input" style={{ flex: 1, fontSize: 12 }} />
+                  <button onClick={() => void copyShare()} className="cw-btn cw-btn-sm">{t('copy')}</button>
                 </div>
               </div>
             )}
-            <div style={{ fontSize: 12, color: '#666', marginBottom: 4 }}>{t('existingShares')}</div>
-            {shares.length === 0 && <div style={{ fontSize: 12, color: '#999' }}>{t('noShares')}</div>}
+            <div style={{ fontSize: 12, color: 'var(--cw-secondaryLabel)', marginBottom: 4 }}>{t('existingShares')}</div>
+            {shares.length === 0 && <div style={{ fontSize: 12, color: 'var(--cw-tertiaryLabel)' }}>{t('noShares')}</div>}
             {shares.map((s) => (
-              <div key={s.token} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0', borderBottom: '0.5px solid #f0f0f0', fontSize: 12 }}>
-                <a href={`${location.origin}/share/${s.token}`} target="_blank" rel="noreferrer" style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: '#185fa5' }}>/share/{s.token}</a>
-                <span style={{ color: s.mode === 'write' ? '#ef9f27' : '#888', flexShrink: 0 }}>{s.mode === 'write' ? t('editableShort') : t('readOnlyShort')}</span>
+              <div key={s.token} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0', borderBottom: '0.5px solid var(--cw-separator)', fontSize: 12 }}>
+                <a href={`${location.origin}/share/${s.token}`} target="_blank" rel="noreferrer" style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--cw-blue)' }}>/share/{s.token}</a>
+                <span style={{ color: s.mode === 'write' ? 'var(--cw-orange)' : 'var(--cw-secondaryLabel)', flexShrink: 0 }}>{s.mode === 'write' ? t('editableShort') : t('readOnlyShort')}</span>
                 <button onClick={() => void revokeShare(s.token)} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: '#c33', fontSize: 12, flexShrink: 0 }}>{t('revoke')}</button>
               </div>
             ))}
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 12 }}>
-              <button onClick={() => setShowShare(false)} style={btn}>{t('close')}</button>
+              <button onClick={() => setShowShare(false)} className="cw-btn cw-btn-sm">{t('close')}</button>
             </div>
           </div>
         </div>
       )}
 
       {showLoreModal && (
-        <div style={{ position: 'absolute', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 12 }}>
-          <div style={{ background: '#fff', borderRadius: 12, padding: 20, width: 400, boxShadow: '0 12px 48px rgba(0,0,0,0.3)' }}>
+        <div className="cw-modal-backdrop" style={{ borderRadius: 12 }}>
+          <div className="cw-modal" style={{ width: 400 }}>
             <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 14 }}>{loreMode === 'add' ? t('newLoreTitle') : t('editLoreTitle')}</div>
-            <label style={{ fontSize: 12, color: '#666', display: 'block', marginBottom: 4 }}>{t('name')}</label>
-            <input value={loreName} onChange={(e) => setLoreName(e.target.value)} placeholder={t('loreNamePlaceholder')} style={{ width: '100%', boxSizing: 'border-box', padding: '8px 10px', borderRadius: 6, border: '0.5px solid #ccc', fontSize: 13, marginBottom: 12 }} />
-            <label style={{ fontSize: 12, color: '#666', display: 'block', marginBottom: 4 }}>{t('contentDef')}</label>
-            <textarea value={loreContent} onChange={(e) => setLoreContent(e.target.value)} placeholder={t('loreContentPlaceholder')} rows={6} style={{ width: '100%', boxSizing: 'border-box', padding: '8px 10px', borderRadius: 6, border: '0.5px solid #ccc', fontSize: 13, marginBottom: 12, resize: 'vertical' }} />
-            <label style={{ fontSize: 12, color: '#666', display: 'block', marginBottom: 4 }}>{t('keywords')}</label>
-            <input value={loreKeywords} onChange={(e) => setLoreKeywords(e.target.value)} placeholder={t('keywordsPlaceholder')} style={{ width: '100%', boxSizing: 'border-box', padding: '8px 10px', borderRadius: 6, border: '0.5px solid #ccc', fontSize: 13, marginBottom: 16 }} />
+            <label style={{ fontSize: 12, color: 'var(--cw-secondaryLabel)', display: 'block', marginBottom: 4 }}>{t('name')}</label>
+            <input value={loreName} onChange={(e) => setLoreName(e.target.value)} placeholder={t('loreNamePlaceholder')} className="cw-input" style={{ marginBottom: 12 }} />
+            <label style={{ fontSize: 12, color: 'var(--cw-secondaryLabel)', display: 'block', marginBottom: 4 }}>{t('contentDef')}</label>
+            <textarea value={loreContent} onChange={(e) => setLoreContent(e.target.value)} placeholder={t('loreContentPlaceholder')} rows={6} className="cw-textarea" style={{ marginBottom: 12 }} />
+            <label style={{ fontSize: 12, color: 'var(--cw-secondaryLabel)', display: 'block', marginBottom: 4 }}>{t('keywords')}</label>
+            <input value={loreKeywords} onChange={(e) => setLoreKeywords(e.target.value)} placeholder={t('keywordsPlaceholder')} className="cw-input" style={{ marginBottom: 16 }} />
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-              <button onClick={() => setShowLoreModal(false)} style={btn}>{t('cancel')}</button>
-              <button onClick={() => void submitLore()} disabled={!loreName.trim()} style={{ ...btn, background: '#378add', borderColor: '#378add', color: '#fff' }}>{loreMode === 'add' ? t('create') : t('save')}</button>
+              <button onClick={() => setShowLoreModal(false)} className="cw-btn cw-btn-sm">{t('cancel')}</button>
+              <button onClick={() => void submitLore()} disabled={!loreName.trim()} className="cw-btn cw-btn-sm cw-btn-primary">{loreMode === 'add' ? t('create') : t('save')}</button>
             </div>
           </div>
         </div>
       )}
 
       {lorePreview && (
-        <div style={{ position: 'absolute', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 12 }}>
-          <div style={{ background: '#fff', borderRadius: 12, padding: 20, width: 440, maxHeight: '80%', display: 'flex', flexDirection: 'column', boxShadow: '0 12px 48px rgba(0,0,0,0.3)' }}>
+        <div className="cw-modal-backdrop" style={{ borderRadius: 12 }}>
+          <div className="cw-modal" style={{ width: 440, maxHeight: '80%', display: 'flex', flexDirection: 'column' }}>
             <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 4 }}>{lorePreview.name}</div>
-            <div style={{ fontSize: 12, color: '#999', marginBottom: 12 }}>{lorePreview.enabled ? t('enabledState') : t('disabledState')} · {t('keywordLabel')}：{kwText(lorePreview.keywords) || t('none')}</div>
+            <div style={{ fontSize: 12, color: 'var(--cw-tertiaryLabel)', marginBottom: 12 }}>{lorePreview.enabled ? t('enabledState') : t('disabledState')} · {t('keywordLabel')}：{kwText(lorePreview.keywords) || t('none')}</div>
             <div style={{ flex: 1, overflow: 'auto', fontSize: 13, lineHeight: 1.8, color: '#333', whiteSpace: 'pre-wrap', border: '0.5px solid #eee', borderRadius: 8, padding: 12 }}>{lorePreview.content}</div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 12 }}>
-              <button onClick={() => setLorePreview(null)} style={btn}>{t('close')}</button>
+              <button onClick={() => setLorePreview(null)} className="cw-btn cw-btn-sm">{t('close')}</button>
             </div>
           </div>
         </div>

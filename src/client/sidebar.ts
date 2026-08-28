@@ -1,4 +1,5 @@
 import { t } from './i18n.ts'
+import { injectAppleStyles } from './apple-ui.ts'
 /**
  * dsh-course-writer — 侧边栏入口（P1-I）。
  * DOM 级注入 + MutationObserver 自愈（task-board sidebar-entry 模式）：
@@ -32,11 +33,8 @@ function createEntry(onClick: () => void): HTMLButtonElement {
   entry.dataset.dshCourseWriterEntry = ''
   entry.title = t('appName')
   entry.setAttribute('aria-label', t('appName'))
-  entry.style.cssText = [
-    'display:flex', 'alignItems:center', 'gap:8px', 'width:100%',
-    'padding:8px 12px', 'border:none', 'background:transparent',
-    'cursor:pointer', 'fontSize:13px', 'color:inherit',
-  ].join(';')
+  // Apple 侧边栏入口样式（hover 高亮 + 圆角），样式表由 injectAppleStyles 幂等注入
+  entry.className = 'cw-sidebar-entry'
   entry.innerHTML = `<span style="display:flex">${ICON}</span><span>${t('appName')}</span>`
   entry.addEventListener('click', onClick)
   return entry
@@ -59,6 +57,9 @@ export function mountSidebarEntry(onClick: () => void, onFirstMount?: () => void
     placed = true
     onFirstMount?.()
   }
+
+  // 首次挂载：注入 Apple 样式表（幂等，供 .cw-sidebar-entry 使用）
+  injectAppleStyles()
 
   const tryPlace = (): void => {
     try {

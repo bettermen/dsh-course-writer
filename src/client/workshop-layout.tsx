@@ -7,6 +7,7 @@ import { createRoot, type Root } from 'react-dom/client'
 import { GENRES } from '../core/genres.ts'
 import { t } from './i18n.ts'
 import { injectAppleStyles, useAppleScheme } from './apple-ui.ts'
+import { ContextMenu, type MenuItem } from './context-menu.tsx'
 
 const GENRE_GROUPS = [...new Set(GENRES.map((g) => g.group))]
 
@@ -84,6 +85,8 @@ function renderMarkdown(md: string): string {
 function GraphSvg({ graph }: { graph: Graph }): React.ReactElement {
   const nodes = graph.nodes
   const edges = graph.edges ?? []
+  const [active, setActive] = useState<string | null>(null)
+  const [zoom, setZoom] = useState(1)
   const W = 340
   const H = 460
   const cx = W / 2
@@ -94,16 +97,36 @@ function GraphSvg({ graph }: { graph: Graph }): React.ReactElement {
     const angle = (Math.PI * 2 * i) / nodes.length - Math.PI / 2
     pos.set(n.id, { x: cx + R * Math.cos(angle), y: cy + R * Math.sin(angle), angle })
   })
+
+  const nodeColor = (type: string): string =>
+    type === 'skill' ? 'var(--cw-blue)' : type === 'case' ? 'var(--cw-orange)' : 'var(--cw-green)'
+
+  // 滚轮缩放：以画布中心为锚点（Apple 图谱/预览的惯性手感）
+  const onWheel = (e: React.WheelEvent<SVGSVGElement>): void => {
+    setZoom((z) => Math.min(2.2, Math.max(0.6, z - e.deltaY * 0.0015)))
+  }
+
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', height: '100%' }}>
+    <svg
+      className="cw-graph"
+      viewBox={`${cx - W / 2 / zoom} ${cy - H / 2 / zoom} ${W / zoom} ${H / zoom}`}
+      onWheel={onWheel}
+      onClick={() => setActive(null)}
+    >
       {edges.map((e, i) => {
         const a = pos.get(e.source); const b = pos.get(e.target)
         if (!a || !b) return null
-        return <line key={`e${i}`} x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke="var(--cw-separator)" strokeWidth={1.2} />
+        const isActive = active !== null && (e.source === active || e.target === active)
+        return (
+          <line
+            key={`e${i}`}
+            className={isActive ? 'cw-graph-edge is-active' : 'cw-graph-edge'}
+            x1={a.x} y1={a.y} x2={b.x} y2={b.y}
+          />
+        )
       })}
       {nodes.map((n) => {
         const p = pos.get(n.id)!
-        const color = n.type === 'skill' ? 'var(--cw-blue)' : n.type === 'case' ? 'var(--cw-orange)' : 'var(--cw-green)'
         const cos = Math.cos(p.angle)
         const sin = Math.sin(p.angle)
         // 标签沿节点外侧径向延伸（而非统一置顶），按角度选择锚点，避免相邻标签重叠
@@ -111,10 +134,30 @@ function GraphSvg({ graph }: { graph: Graph }): React.ReactElement {
         const ly = p.y + sin * 24 + 4
         const anchor = cos > 0.25 ? 'start' : cos < -0.25 ? 'end' : 'middle'
         const short = n.label.length > 8 ? `${n.label.slice(0, 8)}…` : n.label
+        const isActive = active === n.id
         return (
-          <g key={n.id}>
-            <circle cx={p.x} cy={p.y} r={14} fill={color} stroke="#fff" strokeWidth={2} />
-            <text x={lx} y={ly} textAnchor={anchor} fontSize={11} fill="#666" fontWeight={500}>
+          <g
+            key={n.id}
+            onClick={(e) => { e.stopPropagation(); setActive(isActive ? null : n.id) }}
+          >
+            {isActive && (
+              <circle cx={p.x} cy={p.y} r={21} fill={nodeColor(n.type)} opacity={0.18} />
+            )}
+            <circle
+              className="cw-graph-node"
+              cx={p.x}
+              cy={p.y}
+              r={isActive ? 15 : 13}
+              fill={nodeColor(n.type)}
+              stroke="var(--cw-bg)"
+              strokeWidth={2}
+            />
+            <text
+              className={isActive ? 'cw-graph-label is-active' : 'cw-graph-label'}
+              x={lx}
+              y={ly}
+              textAnchor={anchor}
+            >
               {short}
               <title>{n.label}</title>
             </text>
@@ -410,6 +453,48 @@ export function WorkshopLayout({ api: base, fenceHeader, onClose }: Options & { 
   const scheme = useAppleScheme()
   useEffect(() => { injectAppleStyles() }, [])
 
+  // 右键菜单（Apple Context Menu）
+  const [menu, setMenu] = useState<{ x: number; y: number; items: MenuItem[] } | null>(null)
+
+  /** 栏宽拖拽进行中的手柄（拖拽态高亮）。 */
+  const [draggingCol, setDraggingCol] = useState<'left' | 'right' | null>(null)
+
+  /** 章节右键菜单——只暴露无覆盖风险的操作（重命名走编辑区标题框）。 */
+  const openChapterMenu = (e: React.MouseEvent, c: { no: number; title: string }): void => {
+    e.preventDefault()
+    setMenu({
+      x: e.clientX,
+      y: e.clientY,
+      items: [
+        { label: t('preview'), onSelect: () => void loadChapter(selected, c.no) },
+        { separator: true, label: '' },
+        { label: t('newLesson'), onSelect: () => void loadChapter(selected, chapters.length + 1) },
+        { separator: true, label: '' },
+        {
+          label: t('copy'),
+          shortcut: '⌘C',
+          onSelect: () => { void navigator.clipboard?.writeText(c.title || String(c.no)) },
+        },
+      ],
+    })
+  }
+
+  /** 知识点右键菜单——预览 / 编辑 / 停用启用 / 删除。 */
+  const openLoreMenu = (e: React.MouseEvent, entry: LoreEntryView): void => {
+    e.preventDefault()
+    setMenu({
+      x: e.clientX,
+      y: e.clientY,
+      items: [
+        { label: t('preview'), onSelect: () => setLorePreview(entry) },
+        { label: t('edit'), onSelect: () => openLoreEdit(entry) },
+        { label: entry.enabled ? t('disable') : t('enable'), onSelect: () => void toggleEntry(entry.id) },
+        { separator: true, label: '' },
+        { label: t('delete'), danger: true, onSelect: () => void deleteEntry(entry.id) },
+      ],
+    })
+  }
+
   // 缩小窗口的左下角拖拽缩放：右上角固定，向左拖变宽、向下拖变高。
   const startResize = (e: React.MouseEvent): void => {
     e.preventDefault()
@@ -423,6 +508,7 @@ export function WorkshopLayout({ api: base, fenceHeader, onClose }: Options & { 
       setHalfSize({ w, h })
     }
     const onUp = (): void => {
+      setDraggingCol(null)
       window.removeEventListener('mousemove', onMove)
       window.removeEventListener('mouseup', onUp)
     }
@@ -434,6 +520,7 @@ export function WorkshopLayout({ api: base, fenceHeader, onClose }: Options & { 
   const startColResize = (side: 'left' | 'right', e: React.MouseEvent): void => {
     if (win !== 'full') return
     e.preventDefault()
+    setDraggingCol(side)
     const startX = e.clientX
     const startW = side === 'left' ? leftW : rightW
     const onMove = (ev: MouseEvent): void => {
@@ -442,6 +529,7 @@ export function WorkshopLayout({ api: base, fenceHeader, onClose }: Options & { 
       if (side === 'left') setLeftW(w); else setRightW(w)
     }
     const onUp = (): void => {
+      setDraggingCol(null)
       window.removeEventListener('mousemove', onMove)
       window.removeEventListener('mouseup', onUp)
     }
@@ -497,7 +585,7 @@ export function WorkshopLayout({ api: base, fenceHeader, onClose }: Options & { 
       {loading ? <div style={{ padding: 24, color: 'var(--cw-secondaryLabel)', fontSize: 13 }}>{t('loading')}</div> : error ? <div style={{ padding: 24, color: '#c33', fontSize: 13 }}>{error}</div> : (
         <div style={{ flex: 1, display: 'flex', gap: 0, minHeight: 0 }}>
           {/* 左栏：章节 / 阶段 双视图 */}
-          <div className="cw-scroll" style={{ width: win === 'full' ? leftW : '20%', flexShrink: 0, ...col, borderRight: 'none' }}>
+          <div className="cw-scroll cw-sidebar-pane" style={{ width: win === 'full' ? leftW : '20%', flexShrink: 0, ...col, borderRight: 'none' }}>
             <div className="cw-segmented">
               <button onClick={() => setLeftTab('chapters')} className={leftTab === 'chapters' ? 'cw-seg-item is-active' : 'cw-seg-item'}>{t('chapters')}</button>
               <button onClick={() => setLeftTab('phases')} className={leftTab === 'phases' ? 'cw-seg-item is-active' : 'cw-seg-item'}>{t('phases')}</button>
@@ -509,7 +597,10 @@ export function WorkshopLayout({ api: base, fenceHeader, onClose }: Options & { 
                   <button onClick={() => void loadChapter(selected, chapters.length + 1)} className="cw-btn cw-btn-sm">{t('newLesson')}</button>
                 </div>
                 {chapters.map((c) => (
-                  <div key={c.no} onClick={() => void loadChapter(selected, c.no)} className={chapterNo === c.no ? 'cw-list-item is-selected' : 'cw-list-item'} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 8px', fontSize: 13, cursor: 'pointer' }}>
+                  <div key={c.no} onClick={() => void loadChapter(selected, c.no)} onContextMenu={(e) => openChapterMenu(e, c)} className={chapterNo === c.no ? 'cw-list-item is-selected' : 'cw-list-item'} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 8px', fontSize: 13, cursor: 'pointer' }}>
+                    <span className="cw-drag-handle" title="拖拽排序" aria-hidden="true">
+                      <svg width="9" height="12" viewBox="0 0 9 12" fill="currentColor"><circle cx="1.8" cy="1.6" r="1" /><circle cx="7.2" cy="1.6" r="1" /><circle cx="1.8" cy="6" r="1" /><circle cx="7.2" cy="6" r="1" /><circle cx="1.8" cy="10.4" r="1" /><circle cx="7.2" cy="10.4" r="1" /></svg>
+                    </span>
                     <span style={{ fontSize: 11, color: 'var(--cw-secondaryLabel)', flexShrink: 0 }}>{c.no}</span>
                     <span style={{ flex: 1, fontWeight: chapterNo === c.no ? 600 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.title || `第 ${c.no} 课`}</span>
                   </div>
@@ -535,7 +626,7 @@ export function WorkshopLayout({ api: base, fenceHeader, onClose }: Options & { 
             )}
           </div>
 
-          {win === 'full' && <div onMouseDown={(e) => startColResize('left', e)} className="cw-resizer" style={{ width: 6, borderLeft: '1px solid var(--cw-separator)', borderRight: '1px solid var(--cw-separator)' }} title={t('resizeLeft')} />}
+          {win === 'full' && <div onMouseDown={(e) => startColResize('left', e)} className={draggingCol === 'left' ? 'cw-resizer is-dragging' : 'cw-resizer'} style={{ width: 6, borderLeft: '1px solid var(--cw-separator)', borderRight: '1px solid var(--cw-separator)' }} title={t('resizeLeft')} />}
 
           {/* 中栏：编辑区 */}
           <div className="cw-scroll" style={{ flex: win === 'full' ? 1 : '0 0 60%', ...col, minWidth: 0 }}>
@@ -574,7 +665,7 @@ export function WorkshopLayout({ api: base, fenceHeader, onClose }: Options & { 
             </div>
           </div>
 
-          {win === 'full' && <div onMouseDown={(e) => startColResize('right', e)} className="cw-resizer" style={{ width: 6, borderLeft: '1px solid var(--cw-separator)', borderRight: '1px solid var(--cw-separator)' }} title={t('resizeRight')} />}
+          {win === 'full' && <div onMouseDown={(e) => startColResize('right', e)} className={draggingCol === 'right' ? 'cw-resizer is-dragging' : 'cw-resizer'} style={{ width: 6, borderLeft: '1px solid var(--cw-separator)', borderRight: '1px solid var(--cw-separator)' }} title={t('resizeRight')} />}
 
           {/* 右栏：资料库 / 知识图谱 / 预览 */}
           <div className="cw-scroll" style={{ width: win === 'full' ? rightW : '20%', flexShrink: 0, ...col, borderLeft: 'none' }}>
@@ -587,10 +678,10 @@ export function WorkshopLayout({ api: base, fenceHeader, onClose }: Options & { 
                 <button onClick={openLoreAdd} className="cw-btn cw-btn-sm">{t('newLore')}</button>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                   {loreEntries.filter((e) => !e.book_id || e.book_id === selected).map((e) => (
-                    <div key={e.id} className="cw-card" style={{ padding: 10, fontSize: 13, opacity: e.enabled ? 1 : 0.55 }}>
+                    <div key={e.id} className="cw-card" onContextMenu={(ev) => openLoreMenu(ev, e)} style={{ padding: 10, fontSize: 13, opacity: e.enabled ? 1 : 0.55 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
                         <span style={{ fontWeight: 600, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.name}</span>
-                        <span style={{ fontSize: 11, color: e.enabled ? 'var(--cw-green)' : 'var(--cw-tertiaryLabel)', flexShrink: 0 }}>{e.enabled ? t('enable') : t('disable')}</span>
+                        <span className={e.enabled ? 'cw-badge is-on' : 'cw-badge is-off'} style={{ flexShrink: 0 }}>{e.enabled ? t('enable') : t('disable')}</span>
                       </div>
                       <div style={{ fontSize: 12, color: 'var(--cw-secondaryLabel)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: 6 }} title={e.content}>{e.content}</div>
                       <div style={{ display: 'flex', gap: 4 }}>
@@ -605,7 +696,37 @@ export function WorkshopLayout({ api: base, fenceHeader, onClose }: Options & { 
                 </div>
               </>
             )}
-            {tab === 'graph' && (graph && graph.nodes?.length ? <GraphSvg graph={graph} /> : <div style={{ fontSize: 12, color: 'var(--cw-tertiaryLabel)', padding: 8 }}>{t('noGraph')}</div>)}
+            {tab === 'graph' && (graph && graph.nodes?.length
+              ? (
+                <>
+                  <GraphSvg graph={graph} />
+                  <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', fontSize: 11, color: 'var(--cw-secondaryLabel)' }}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                      <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--cw-blue)', flexShrink: 0 }} />
+                      {t('graphSkill')}
+                    </span>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                      <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--cw-orange)', flexShrink: 0 }} />
+                      {t('graphCase')}
+                    </span>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                      <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--cw-green)', flexShrink: 0 }} />
+                      {t('graphConcept')}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: 11, color: 'var(--cw-tertiaryLabel)' }}>{t('graphHint')}</div>
+                </>
+              )
+              : (
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10, color: 'var(--cw-tertiaryLabel)', textAlign: 'center', padding: '24px 12px' }}>
+                  <svg width="42" height="42" viewBox="0 0 40 40" fill="none" stroke="currentColor" strokeWidth="1.3" opacity="0.45">
+                    <circle cx="20" cy="9" r="4" /><circle cx="9" cy="29" r="4" /><circle cx="31" cy="29" r="4" />
+                    <path d="M17.5 12.5 11.5 25.5M22.5 12.5 28.5 25.5M13 29h14" />
+                  </svg>
+                  <div style={{ fontSize: 12, lineHeight: 1.6, maxWidth: 230 }}>{t('noGraph')}</div>
+                </div>
+              )
+            )}
           </div>
         </div>
       )}
@@ -721,6 +842,8 @@ export function WorkshopLayout({ api: base, fenceHeader, onClose }: Options & { 
           </div>
         </div>
       )}
+
+      {menu && <ContextMenu x={menu.x} y={menu.y} items={menu.items} onClose={() => setMenu(null)} />}
     </div>
   )
 }

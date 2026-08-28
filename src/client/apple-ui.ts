@@ -355,6 +355,102 @@ ${Object.keys(darkTokens).map((k) => `  --cw-${k}: ${(darkTokens as Record<strin
   margin: 2px 0 !important;
 }
 .cw-sidebar-entry:hover { background: rgba(120, 120, 128, 0.12) !important; }
+
+/* ---------- 半透明侧栏（Apple Translucent Sidebar）---------- */
+.cw-sidebar-pane {
+  background: var(--cw-glass);
+  backdrop-filter: saturate(180%) blur(24px);
+  -webkit-backdrop-filter: saturate(180%) blur(24px);
+}
+
+/* ---------- 右键菜单（Apple Context Menu）---------- */
+.cw-menu {
+  position: fixed;
+  z-index: 999999;
+  min-width: 176px;
+  padding: 5px;
+  border-radius: 8px;
+  background: var(--cw-glassStrong);
+  backdrop-filter: saturate(180%) blur(24px);
+  -webkit-backdrop-filter: saturate(180%) blur(24px);
+  border: 0.5px solid var(--cw-separator);
+  box-shadow: var(--cw-shadowLg);
+  font-family: var(--cw-font);
+  font-size: 13px;
+  color: var(--cw-label);
+  animation: cw-menu-in 0.12s var(--cw-ease);
+  user-select: none;
+}
+@keyframes cw-menu-in {
+  from { opacity: 0; transform: scale(0.97); }
+  to { opacity: 1; transform: scale(1); }
+}
+.cw-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 9px;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--cw-label);
+  font-family: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.08s var(--cw-ease);
+}
+.cw-menu-item:hover:not(:disabled) { background: var(--cw-blue); color: #fff; }
+.cw-menu-item:disabled { opacity: 0.38; cursor: default; }
+.cw-menu-item.is-danger { color: var(--cw-red); }
+.cw-menu-item.is-danger:hover:not(:disabled) { background: var(--cw-red); color: #fff; }
+.cw-menu-label { flex: 1; white-space: nowrap; }
+.cw-menu-shortcut { font-size: 11px; opacity: 0.5; font-variant-numeric: tabular-nums; }
+.cw-menu-item:hover .cw-menu-shortcut { opacity: 0.75; }
+.cw-menu-sep { height: 1px; margin: 4px 6px; background: var(--cw-separator); }
+
+/* ---------- 拖拽手柄（列表重排视觉暗示）---------- */
+.cw-drag-handle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  color: var(--cw-tertiaryLabel);
+  cursor: grab;
+  opacity: 0;
+  transition: opacity 0.15s var(--cw-ease), color 0.15s var(--cw-ease);
+  flex-shrink: 0;
+}
+.cw-list-item:hover .cw-drag-handle { opacity: 1; }
+.cw-drag-handle:hover { color: var(--cw-secondaryLabel); }
+.cw-drag-handle:active { cursor: grabbing; }
+.cw-list-item.is-dragging { opacity: 0.45; }
+
+/* ---------- 知识图谱 ---------- */
+.cw-graph { width: 100%; height: 100%; display: block; }
+.cw-graph-node {
+  cursor: pointer;
+  transition: r 0.18s var(--cw-spring), opacity 0.18s var(--cw-ease);
+}
+.cw-graph-node:hover { filter: brightness(1.08); }
+.cw-graph-label {
+  font-family: var(--cw-font);
+  font-size: 11px;
+  font-weight: 500;
+  fill: var(--cw-secondaryLabel);
+  pointer-events: none;
+  transition: fill 0.18s var(--cw-ease);
+}
+.cw-graph-label.is-active { fill: var(--cw-label); font-weight: 590; }
+.cw-graph-edge {
+  stroke: var(--cw-separator);
+  stroke-width: 1.2;
+  transition: stroke 0.18s var(--cw-ease), stroke-width 0.18s var(--cw-ease);
+}
+.cw-graph-edge.is-active { stroke: var(--cw-blue); stroke-width: 1.8; }
 `
 
 /** 幂等注入样式表（首次调用插入，后续跳过）。 */

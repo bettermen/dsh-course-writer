@@ -30,6 +30,7 @@ import { closeBrackets, closeBracketsKeymap } from '@codemirror/autocomplete'
 import { highlightSelectionMatches, openSearchPanel, search, searchKeymap } from '@codemirror/search'
 import { tags } from '@lezer/highlight'
 import { darkTokens, lightTokens } from './apple-ui.ts'
+import type { DocState } from './md-commands.ts'
 
 /** 编辑器等宽字体栈（中文回退到苹方/雅黑，避免等宽字体缺字）。 */
 const EDITOR_FONT = 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "PingFang SC", "Microsoft YaHei", monospace'
@@ -168,6 +169,11 @@ export interface MarkdownEditorApi {
   redo: () => void
   openSearch: () => void
   focus: () => void
+  /**
+   * 跑一个纯函数命令（见 md-commands.ts）：读出当前文档 + 选区 → 计算结果 → 写回。
+   * 整篇替换而非局部插入，是为了让一次工具栏动作只占一步撤销。
+   */
+  run: (cmd: (s: DocState) => DocState) => void
 }
 
 export interface MarkdownEditorProps {
@@ -229,6 +235,20 @@ export function MarkdownEditor({
       redo: () => { redo(view); view.focus() },
       openSearch: () => { openSearchPanel(view) },
       focus: () => view.focus(),
+      run: (cmd) => {
+        const doc = view.state.doc.toString()
+        const head = view.state.selection.main
+        const next = cmd({ text: doc, from: head.from, to: head.to })
+        const fit = (n: number): number => Math.max(0, Math.min(n, next.text.length))
+        // 命令没改动任何东西（例如 url 为空的插入）时只聚焦，不产生一次空撤销步
+        if (next.text === doc && next.from === head.from && next.to === head.to) { view.focus(); return }
+        view.dispatch({
+          changes: { from: 0, to: doc.length, insert: next.text },
+          selection: { anchor: fit(next.from), head: fit(next.to) },
+          scrollIntoView: true,
+        })
+        view.focus()
+      },
     })
     return () => {
       // 卸载时清空外部引用，避免切到预览模式后工具栏按钮仍操作已销毁实例

@@ -9,6 +9,8 @@ import { t } from './i18n.ts'
 import { injectAppleStyles, useAppleScheme } from './apple-ui.ts'
 import { ContextMenu, type MenuItem } from './context-menu.tsx'
 import { MarkdownEditor, type MarkdownEditorApi } from './markdown-editor.tsx'
+import { MdToolbar } from './md-toolbar.tsx'
+import { renderMarkdown } from './markdown-render.ts'
 
 const GENRE_GROUPS = [...new Set(GENRES.map((g) => g.group))]
 
@@ -42,45 +44,6 @@ const PHASE_STATE: Record<string, { label: string; color: string }> = {
   review: { label: t('phaseReview'), color: 'var(--cw-orange)' },
   approved: { label: t('phaseApproved'), color: 'var(--cw-green)' },
   skipped: { label: t('phaseSkipped'), color: 'var(--cw-tertiaryLabel)' },
-}
-
-function escapeHtml(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-}
-
-/** 极简 Markdown → HTML（标题/粗斜体/行内代码/代码块/列表/段落），先转义再渲染，防 XSS。 */
-function renderMarkdown(md: string): string {
-  const lines = md.split('\n')
-  let html = ''
-  let inCode = false
-  const codeBuf: string[] = []
-  const listBuf: string[] = []
-  const flushList = (): void => {
-    if (listBuf.length) { html += '<ul>' + listBuf.map((li) => `<li>${li}</li>`).join('') + '</ul>'; listBuf.length = 0 }
-  }
-  const inline = (s: string): string => {
-    let t = escapeHtml(s)
-    t = t.replace(/`([^`]+)`/g, '<code>$1</code>')
-    t = t.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
-    t = t.replace(/\*([^*]+)\*/g, '<em>$1</em>')
-    return t
-  }
-  for (const line of lines) {
-    if (line.trim().startsWith('```')) {
-      if (inCode) { html += '<pre><code>' + escapeHtml(codeBuf.join('\n')) + '</code></pre>'; codeBuf.length = 0; inCode = false }
-      else { flushList(); inCode = true }
-      continue
-    }
-    if (inCode) { codeBuf.push(line); continue }
-    const h = line.match(/^(#{1,4})\s+(.*)/)
-    if (h) { flushList(); const lvl = h[1]!.length; html += `<h${lvl}>${inline(h[2]!)}</h${lvl}>`; continue }
-    if (/^\s*[-*+]\s+/.test(line)) { listBuf.push(inline(line.replace(/^\s*[-*+]\s+/, ''))); continue }
-    if (line.trim() === '') { flushList(); continue }
-    flushList(); html += '<p>' + inline(line) + '</p>'
-  }
-  flushList()
-  if (inCode) html += '<pre><code>' + escapeHtml(codeBuf.join('\n')) + '</code></pre>'
-  return html
 }
 
 function GraphSvg({ graph }: { graph: Graph }): React.ReactElement {
@@ -465,8 +428,11 @@ export function WorkshopLayout({ api: base, fenceHeader, onClose }: Options & { 
   const [overNo, setOverNo] = useState<number | null>(null)
   const [reordering, setReordering] = useState(false)
 
-  /** Markdown 编辑器：命令句柄 + 行号开关。 */
-  const editorApi = useRef<MarkdownEditorApi | null>(null)
+  /**
+   * Markdown 编辑器：命令句柄 + 行号开关。
+   * 句柄用 state 而不是 ref —— 工具栏要等它就绪才能解禁按钮，用 ref 不会触发重渲染。
+   */
+  const [editorApi, setEditorApi] = useState<MarkdownEditorApi | null>(null)
   const [showLineNumbers, setShowLineNumbers] = useState(false)
 
   /**
@@ -764,6 +730,14 @@ export function WorkshopLayout({ api: base, fenceHeader, onClose }: Options & { 
               </div>
               <button onClick={() => void save()} className="cw-btn cw-btn-sm cw-btn-primary">{t('save')}</button>
             </div>
+            {viewMode !== 'preview' && (
+              <MdToolbar
+                api={editorApi}
+                scheme={scheme}
+                showLineNumbers={showLineNumbers}
+                onToggleLineNumbers={() => setShowLineNumbers((v) => !v)}
+              />
+            )}
             <div style={{ flex: 1, display: 'flex', gap: 8, minHeight: 0 }}>
               {viewMode !== 'preview' && (
                 <div className="cw-card cw-md-shell" style={{ flex: 1, minWidth: 0, minHeight: 0, padding: '2px 6px', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
@@ -773,39 +747,18 @@ export function WorkshopLayout({ api: base, fenceHeader, onClose }: Options & { 
                     scheme={scheme}
                     placeholder={t('editorPlaceholder')}
                     showLineNumbers={showLineNumbers}
-                    onReady={(api) => { editorApi.current = api }}
+                    onReady={setEditorApi}
                   />
                 </div>
               )}
               {viewMode !== 'edit' && (
-                <div className="cw-card cw-scroll" style={{ flex: 1, padding: 12, fontSize: 13, lineHeight: 1.7, background: 'var(--cw-tertiaryBg)' }} dangerouslySetInnerHTML={{ __html: previewHtml }} />
+                <div className="cw-card cw-scroll cw-preview-body" style={{ flex: 1, padding: 12, background: 'var(--cw-tertiaryBg)' }} dangerouslySetInnerHTML={{ __html: previewHtml }} />
               )}
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 16, fontSize: 12, color: 'var(--cw-secondaryLabel)' }}>
               <span>{t('wordCount')} {draft.length}</span>
               <span>{book?.book.stats.totalWords ?? 0} {t('totalWords')}</span>
               <span style={{ color: dirty ? 'var(--cw-orange)' : 'var(--cw-green)' }}>{dirty ? t('unsaved') : t('saved')}</span>
-              <span style={{ flex: 1 }} />
-              {viewMode !== 'preview' && (
-                <>
-                  <button className="cw-btn cw-btn-sm cw-btn-tertiary" title={t('undo')} onClick={() => editorApi.current?.undo()}>
-                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"><path d="M3 4.5 H7.5 A3 3 0 0 1 7.5 10.5 H5" /><path d="M5 2 L3 4.5 L5 7" /></svg>
-                  </button>
-                  <button className="cw-btn cw-btn-sm cw-btn-tertiary" title={t('redo')} onClick={() => editorApi.current?.redo()}>
-                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"><path d="M9 4.5 H4.5 A3 3 0 0 0 4.5 10.5 H7" /><path d="M7 2 L9 4.5 L7 7" /></svg>
-                  </button>
-                  <button className="cw-btn cw-btn-sm cw-btn-tertiary" title={t('find')} onClick={() => editorApi.current?.openSearch()}>
-                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"><circle cx="5.2" cy="5.2" r="3.4" /><path d="M7.8 7.8 L10.5 10.5" /></svg>
-                  </button>
-                  <button
-                    className={showLineNumbers ? 'cw-btn cw-btn-sm is-on' : 'cw-btn cw-btn-sm cw-btn-tertiary'}
-                    title={t('lineNumbers')}
-                    onClick={() => setShowLineNumbers((v) => !v)}
-                  >
-                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"><path d="M3.5 2.5 H11 M3.5 6 H11 M3.5 9.5 H11" /><path d="M1.4 2.5 H1.5 M1.4 6 H1.5 M1.4 9.5 H1.5" /></svg>
-                  </button>
-                </>
-              )}
             </div>
           </div>
 

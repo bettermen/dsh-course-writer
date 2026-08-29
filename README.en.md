@@ -84,7 +84,7 @@ The plugin ships a **「虾说教材写作」agent preset**, selectable in DSH's
 
 ## 📦 Install
 
-> Requires DSH (Windows/macOS/Linux; runtime Node ≥18). **Install only the LATEST release** (currently v0.3.0).
+> Requires DSH (Windows/macOS/Linux; runtime Node ≥18). **Install only the LATEST release** (currently v0.5.0).
 
 ### ① Let an AI install it (recommended)
 Paste this to any command-capable AI:
@@ -105,7 +105,7 @@ Requires Node ≥22 and Git:
 ```bash
 git clone https://github.com/bettermen/dsh-course-writer.git && cd dsh-course-writer
 npm install && npm run build && npm pack
-dsh plugin --profile web add ./dsh-external-dsh-course-writer-0.3.0.tgz
+dsh plugin --profile web add ./dsh-external-dsh-course-writer-0.5.0.tgz
 ```
 
 **After install**: the sidebar "虾说教材写作" entry and the settings card appear; if not, refresh/restart DSH and check the plugin is enabled.
@@ -142,7 +142,23 @@ projects/       projects (book.json + chapters/ + audit.jsonl + ...)
 - Save: click "保存", or auto-saves 2s after typing stops (status shows "● unsaved / ✓ saved")
 - Search panel comes from CodeMirror (English UI); shortcuts ⌘F find, ⌘Z undo
 
-### 2.5️⃣ Delete & drag reorder
+### 2.5️⃣ Editor toolbar (manual formatting)
+A **Apple-style toolbar** sits atop the center editor — format by hand without remembering Markdown. 16 buttons in 5 groups:
+
+- **History**: undo / redo (⌘Z / ⇧⌘Z)
+- **Paragraph style**: body / headings H1–H3 / quote / bullet list / ordered list / task list / code block
+- **Inline**: bold / italic / strikethrough / inline code
+- **Appearance**: font (default / serif / sans / mono / Kai) + text color (14 colors) + highlight (8 colors, "none" to remove)
+- **Insert**: link / image / table (6×8 grid with hover preview) / divider
+- **View**: find / line-number toggle
+
+Notes:
+
+- Every action is a **single undo step**, with caret position preserved
+- Text color / highlight are stored as inline `<span style="…">` (the previewer **whitelist-restores** only safe CSS properties; `url()` / `expression` / `javascript:` are always blocked, so content stays safe to share)
+- Re-applying the same color/highlight **removes** it; picking another font merges into the same span (no nesting)
+
+### 2.6️⃣ Delete & drag reorder
 - **Delete**: hover a chapter row → ✕ button fades in on the right; or **right-click → 删除课时** (confirms first)
 - **Reorder**: drag a chapter row onto its target position; a blue insertion bar marks the drop point, release to save
 - Context menu also offers: preview / new lesson / copy title

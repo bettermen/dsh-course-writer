@@ -86,7 +86,7 @@
 
 ## 📦 安装
 
-> 需已装 DSH（跨 Windows/macOS/Linux；运行时 Node ≥18）。**务必安装最新版**（当前 v0.3.0）。
+> 需已装 DSH（跨 Windows/macOS/Linux；运行时 Node ≥18）。**务必安装最新版**（当前 v0.5.0）。
 
 ### ① 一句话让 AI 装（推荐）
 把下面这段发给能执行命令的 AI：
@@ -107,7 +107,7 @@ dsh plugin list        # 看到 dsh-course-writer 即成功
 ```bash
 git clone https://github.com/bettermen/dsh-course-writer.git && cd dsh-course-writer
 npm install && npm run build && npm pack
-dsh plugin --profile web add ./dsh-external-dsh-course-writer-0.3.0.tgz
+dsh plugin --profile web add ./dsh-external-dsh-course-writer-0.5.0.tgz
 ```
 
 **装完**：侧边栏出现「虾说教材写作」、设置页出现同名卡片即完成；没有就刷新页面/重启 DSH 并在插件列表确认已启用。
@@ -144,7 +144,23 @@ projects/      项目（book.json + chapters/ + audit.jsonl + ...）
 - 保存：手动点「保存」，或停止输入 2 秒自动保存（底部显示「● 未保存 / ✓ 已保存」）
 - 搜索面板来自 CodeMirror 官方组件，面板文案为英文；快捷键 ⌘F 查找、⌘Z 撤销
 
-### 2.5️⃣ 删除与拖拽排序
+### 2.5️⃣ 编辑器工具栏（手动排版）
+中栏编辑器顶部有一条 **Apple 风格工具栏**，不用记 Markdown 语法也能手动排版，16 个按钮分 5 组：
+
+- **历史**：撤销 / 重做（⌘Z / ⇧⌘Z）
+- **段落样式**：正文 / 标题 H1–H3 / 引用 / 无序列表 / 有序列表 / 任务列表 / 代码块
+- **行内**：加粗 / 斜体 / 删除线 / 行内代码
+- **外观**：字体（默认 / 宋体衬线 / 黑体 / 等宽 / 楷体）+ 字体颜色（14 色）+ 文字高亮（8 色，可选"无"）
+- **插入**：链接 / 图片 / 表格（6×8 网格，悬停预览行列）/ 分割线
+- **视图**：查找 / 行号开关
+
+说明：
+
+- 所有操作走**一次撤销步**（撤销即整段回退），并保持光标定位
+- 字体颜色 / 高亮在 Markdown 中以内联 `<span style="…">` 落地（预览器**白名单**还原，仅放行安全的 CSS 属性，`url()` / `expression` / `javascript:` 一律拦截，内容可安全分享）
+- 颜色 / 高亮再次点击同色即**取消**；字体再次选择并入同一 span，不嵌套
+
+### 2.6️⃣ 删除与拖拽排序
 - **删除**：悬停章节行 → 右侧浮现 ✕ 按钮；或在章节上**右键 → 删除课时**（二次确认后生效）
 - **排序**：直接拖动章节行到目标位置，落点显示蓝色插入条，松手即保存
 - 右键菜单另有：预览 / 新建课时 / 复制标题

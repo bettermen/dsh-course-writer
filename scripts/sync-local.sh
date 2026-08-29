@@ -15,16 +15,21 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 DESKTOP="${HOME}/.dsh/profiles/desktop"
 PLUGIN_DIR="${DESKTOP}/node_modules/@dsh-external/dsh-course-writer"
-TGZ_NAME="dsh-external-dsh-course-writer-0.3.0.tgz"
-
 cd "$ROOT"
-export PATH="/Users/tangliang/.workbuddy/binaries/node/versions/22.22.2/bin:${PATH}"
+
+# 版本号从 package.json 自动读取，避免升级后文件名写死导致 cp 失败
+PKG_NAME="$(/Users/tangliang/.workbuddy/binaries/node/versions/24.14.0/bin/node -p "require('./package.json').name.replace('@','') .replace('/','-')")"
+PKG_VERSION="$(/Users/tangliang/.workbuddy/binaries/node/versions/24.14.0/bin/node -p "require('./package.json').version")"
+TGZ_NAME="${PKG_NAME}-${PKG_VERSION}.tgz"
+echo "   版本：${PKG_VERSION}（${TGZ_NAME}）"
+export PATH="/Users/tangliang/.workbuddy/binaries/node/versions/24.14.0/bin:${PATH}"
 
 echo "→ [1/4] 构建…"
 npm run build
 
 echo "→ [2/4] 打包…"
-rm -f "$TGZ_NAME"
+# 清理历史版本 tgz，避免 npm pack 后残留多版本文件
+rm -f dsh-external-dsh-course-writer-*.tgz
 npm pack > /dev/null
 
 if [ ! -d "$DESKTOP" ]; then
@@ -33,6 +38,7 @@ if [ ! -d "$DESKTOP" ]; then
 fi
 
 echo "→ [3/4] 安装到本机 profile…"
+rm -f "${DESKTOP}"/dsh-external-dsh-course-writer-*.tgz "${DESKTOP}"/dsh-course-writer-*.tgz
 cp "$TGZ_NAME" "${DESKTOP}/${TGZ_NAME}"
 rm -rf "$PLUGIN_DIR"
 mkdir -p "$PLUGIN_DIR"

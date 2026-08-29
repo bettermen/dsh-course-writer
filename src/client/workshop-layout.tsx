@@ -2,12 +2,13 @@
  * dsh-course-writer — 三栏式工作台布局（左：阶段导航 / 中：Markdown 编辑+分屏预览 / 右：资料库·知识图谱·预览）。
  * 自包含：复用 /api/course-writer 数据面；打开时创建全屏层，关闭即销毁。
  */
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { GENRES } from '../core/genres.ts'
 import { t } from './i18n.ts'
 import { injectAppleStyles, useAppleScheme } from './apple-ui.ts'
 import { ContextMenu, type MenuItem } from './context-menu.tsx'
+import { MarkdownEditor, type MarkdownEditorApi } from './markdown-editor.tsx'
 
 const GENRE_GROUPS = [...new Set(GENRES.map((g) => g.group))]
 
@@ -459,7 +460,22 @@ export function WorkshopLayout({ api: base, fenceHeader, onClose }: Options & { 
   /** 栏宽拖拽进行中的手柄（拖拽态高亮）。 */
   const [draggingCol, setDraggingCol] = useState<'left' | 'right' | null>(null)
 
-  /** 章节右键菜单——只暴露无覆盖风险的操作（重命名走编辑区标题框）。 */
+  /** 课时拖拽排序：被拖动的课时号 / 当前悬停落点 / 提交中。 */
+  const [dragNo, setDragNo] = useState<number | null>(null)
+  const [overNo, setOverNo] = useState<number | null>(null)
+  const [reordering, setReordering] = useState(false)
+
+  /** Markdown 编辑器：命令句柄 + 行号开关。 */
+  const editorApi = useRef<MarkdownEditorApi | null>(null)
+  const [showLineNumbers, setShowLineNumbers] = useState(false)
+
+  /**
+   * 下一个新课时的编号。删除后编号是稀疏的（如 1、3），
+   * 故不能用 chapters.length + 1——那会撞上已存在的第 3 课。
+   */
+  const nextChapterNo = (): number => chapters.reduce((max, c) => Math.max(max, c.no), 0) + 1
+
+  /** 章节右键菜单——预览 / 新建 / 复制 / 删除（重命名走编辑区标题框）。 */
   const openChapterMenu = (e: React.MouseEvent, c: { no: number; title: string }): void => {
     e.preventDefault()
     setMenu({
@@ -468,15 +484,70 @@ export function WorkshopLayout({ api: base, fenceHeader, onClose }: Options & { 
       items: [
         { label: t('preview'), onSelect: () => void loadChapter(selected, c.no) },
         { separator: true, label: '' },
-        { label: t('newLesson'), onSelect: () => void loadChapter(selected, chapters.length + 1) },
+        { label: t('newLesson'), onSelect: () => void loadChapter(selected, nextChapterNo()) },
         { separator: true, label: '' },
         {
           label: t('copy'),
           shortcut: '⌘C',
           onSelect: () => { void navigator.clipboard?.writeText(c.title || String(c.no)) },
         },
+        { separator: true, label: '' },
+        { label: t('deleteChapter'), danger: true, onSelect: () => void deleteChapter(c.no, c.title) },
       ],
     })
+  }
+
+  /**
+   * 删除课时。删除后不做重编号（后端保留稀疏编号），
+   * 但为了界面连续，本地把后续课时号前移一位以等待服务端返回真实清单。
+   */
+  const deleteChapter = async (no: number, title: string): Promise<void> => {
+    if (!selected) return
+    const label = title || `${t('lessonPrefix')}${no}${t('lessonSuffix')}`
+    if (!window.confirm(`${t('deleteChapterPrefix')}${label}${t('deleteChapterSuffix')}`)) return
+    try {
+      const j = await api(`/projects/${selected}/chapters/${no}/delete`, { method: 'POST' })
+      if (j?.ok === false) { setNotice(`${t('deleteChapterFail')}：${j?.error?.message ?? ''}`); return }
+      const ch = await api(`/projects/${selected}/chapters`)
+      const list = (ch?.value ?? ch ?? []) as Array<{ no: number; title: string; words: number }>
+      setChapters(list)
+      setNotice(t('chapterDeleted'))
+      // 删除的是当前课时 → 跳到列表首项（或空编辑态）
+      if (no === chapterNo) {
+        const next = list[0]
+        if (next) await loadChapter(selected, next.no)
+        else { setChapterNo(1); setDraft(''); setDirty(false) }
+      }
+    } catch {
+      setNotice(t('deleteChapterFail'))
+    }
+  }
+
+  /**
+   * 拖拽排序：先本地乐观更新（即时反馈），再提交新顺序。
+   * 失败则回滚到拖拽前快照并提示。
+   */
+  const commitReorder = async (order: number[]): Promise<void> => {
+    if (!selected) return
+    const snapshot = chapters
+    setReordering(true)
+    setChapters(order.map((no) => snapshot.find((c) => c.no === no)!).filter(Boolean))
+    try {
+      const j = await api(`/projects/${selected}/chapters/reorder`, { method: 'POST', body: JSON.stringify({ order }) })
+      if (j?.ok === false) throw new Error(j?.error?.message ?? 'reorder failed')
+      const list = (j?.value ?? []) as Array<{ no: number; title: string; words: number }>
+      // 服务端会重编号 1..N，直接以返回结果为准
+      if (list.length) setChapters(list)
+      setNotice(t('reorderSaved'))
+      // 当前课时号可能因重排而改变 → 用标题匹配重新定位
+      const moved = order.indexOf(chapterNo)
+      if (moved >= 0 && moved + 1 !== chapterNo) setChapterNo(moved + 1)
+    } catch {
+      setChapters(snapshot)
+      setNotice(t('reorderFail'))
+    } finally {
+      setReordering(false)
+    }
   }
 
   /** 知识点右键菜单——预览 / 编辑 / 停用启用 / 删除。 */
@@ -594,18 +665,66 @@ export function WorkshopLayout({ api: base, fenceHeader, onClose }: Options & { 
               <>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <span style={{ fontSize: 12, color: 'var(--cw-secondaryLabel)', fontWeight: 500 }}>{t('chapters')}</span>
-                  <button onClick={() => void loadChapter(selected, chapters.length + 1)} className="cw-btn cw-btn-sm">{t('newLesson')}</button>
+                  <button onClick={() => void loadChapter(selected, nextChapterNo())} className="cw-btn cw-btn-sm">{t('newLesson')}</button>
                 </div>
                 {chapters.map((c) => (
-                  <div key={c.no} onClick={() => void loadChapter(selected, c.no)} onContextMenu={(e) => openChapterMenu(e, c)} className={chapterNo === c.no ? 'cw-list-item is-selected' : 'cw-list-item'} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 8px', fontSize: 13, cursor: 'pointer' }}>
-                    <span className="cw-drag-handle" title="拖拽排序" aria-hidden="true">
+                  <div
+                    key={c.no}
+                    onClick={() => void loadChapter(selected, c.no)}
+                    onContextMenu={(e) => openChapterMenu(e, c)}
+                    draggable={!reordering}
+                    onDragStart={(e) => {
+                      setDragNo(c.no)
+                      e.dataTransfer.effectAllowed = 'move'
+                      // Firefox 要求必须设置数据才会触发拖拽
+                      e.dataTransfer.setData('text/plain', String(c.no))
+                    }}
+                    onDragEnd={() => { setDragNo(null); setOverNo(null) }}
+                    onDragOver={(e) => {
+                      if (dragNo === null || dragNo === c.no) return
+                      e.preventDefault()
+                      e.dataTransfer.dropEffect = 'move'
+                      setOverNo(c.no)
+                    }}
+                    onDragLeave={() => { if (overNo === c.no) setOverNo(null) }}
+                    onDrop={(e) => {
+                      e.preventDefault()
+                      const from = dragNo ?? Number(e.dataTransfer.getData('text/plain'))
+                      setDragNo(null)
+                      setOverNo(null)
+                      if (!Number.isFinite(from) || from === c.no) return
+                      const order = chapters.map((x) => x.no)
+                      const fromIndex = order.indexOf(from)
+                      const toIndex = order.indexOf(c.no)
+                      if (fromIndex < 0 || toIndex < 0) return
+                      order.splice(toIndex, 0, ...order.splice(fromIndex, 1))
+                      void commitReorder(order)
+                    }}
+                    className={[
+                      'cw-list-item',
+                      chapterNo === c.no ? 'is-selected' : '',
+                      dragNo === c.no ? 'is-dragging' : '',
+                      overNo === c.no && dragNo !== null && dragNo !== c.no ? 'is-drop-target' : '',
+                    ].filter(Boolean).join(' ')}
+                    style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 8px', fontSize: 13, cursor: 'pointer' }}
+                  >
+                    <span className="cw-drag-handle" title={t('dragToSort')} aria-hidden="true">
                       <svg width="9" height="12" viewBox="0 0 9 12" fill="currentColor"><circle cx="1.8" cy="1.6" r="1" /><circle cx="7.2" cy="1.6" r="1" /><circle cx="1.8" cy="6" r="1" /><circle cx="7.2" cy="6" r="1" /><circle cx="1.8" cy="10.4" r="1" /><circle cx="7.2" cy="10.4" r="1" /></svg>
                     </span>
                     <span style={{ fontSize: 11, color: 'var(--cw-secondaryLabel)', flexShrink: 0 }}>{c.no}</span>
-                    <span style={{ flex: 1, fontWeight: chapterNo === c.no ? 600 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.title || `第 ${c.no} 课`}</span>
+                    <span style={{ flex: 1, fontWeight: chapterNo === c.no ? 600 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.title || `${t('lessonPrefix')}${c.no}${t('lessonSuffix')}`}</span>
+                    <button
+                      className="cw-btn cw-btn-sm cw-btn-tertiary cw-chapter-del"
+                      title={t('deleteChapter')}
+                      aria-label={t('deleteChapter')}
+                      onClick={(e) => { e.stopPropagation(); void deleteChapter(c.no, c.title) }}
+                    >
+                      <svg width="11" height="11" viewBox="0 0 11 11" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"><path d="M2 2 L9 9 M9 2 L2 9" /></svg>
+                    </button>
                   </div>
                 ))}
                 {chapters.length === 0 && <div style={{ fontSize: 12, color: 'var(--cw-tertiaryLabel)', padding: 8 }}>{t('noChapters')}</div>}
+                {reordering && <div style={{ fontSize: 11, color: 'var(--cw-secondaryLabel)', padding: '2px 8px' }}>{t('reordering')}</div>}
               </>
             ) : (
               <>
@@ -647,21 +766,46 @@ export function WorkshopLayout({ api: base, fenceHeader, onClose }: Options & { 
             </div>
             <div style={{ flex: 1, display: 'flex', gap: 8, minHeight: 0 }}>
               {viewMode !== 'preview' && (
-                <textarea
-                  value={draft}
-                  onChange={(e) => { setDraft(e.target.value); setDirty(true) }}
-                  className="cw-textarea" style={{ flex: 1, minHeight: 0, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', lineHeight: 1.7, resize: 'none' }}
-                  placeholder={t('editorPlaceholder')}
-                />
+                <div className="cw-card cw-md-shell" style={{ flex: 1, minWidth: 0, minHeight: 0, padding: '2px 6px', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                  <MarkdownEditor
+                    value={draft}
+                    onChange={(next) => { setDraft(next); setDirty(true) }}
+                    scheme={scheme}
+                    placeholder={t('editorPlaceholder')}
+                    showLineNumbers={showLineNumbers}
+                    onReady={(api) => { editorApi.current = api }}
+                  />
+                </div>
               )}
               {viewMode !== 'edit' && (
                 <div className="cw-card cw-scroll" style={{ flex: 1, padding: 12, fontSize: 13, lineHeight: 1.7, background: 'var(--cw-tertiaryBg)' }} dangerouslySetInnerHTML={{ __html: previewHtml }} />
               )}
             </div>
-            <div style={{ display: 'flex', gap: 16, fontSize: 12, color: 'var(--cw-secondaryLabel)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16, fontSize: 12, color: 'var(--cw-secondaryLabel)' }}>
               <span>{t('wordCount')} {draft.length}</span>
               <span>{book?.book.stats.totalWords ?? 0} {t('totalWords')}</span>
               <span style={{ color: dirty ? 'var(--cw-orange)' : 'var(--cw-green)' }}>{dirty ? t('unsaved') : t('saved')}</span>
+              <span style={{ flex: 1 }} />
+              {viewMode !== 'preview' && (
+                <>
+                  <button className="cw-btn cw-btn-sm cw-btn-tertiary" title={t('undo')} onClick={() => editorApi.current?.undo()}>
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"><path d="M3 4.5 H7.5 A3 3 0 0 1 7.5 10.5 H5" /><path d="M5 2 L3 4.5 L5 7" /></svg>
+                  </button>
+                  <button className="cw-btn cw-btn-sm cw-btn-tertiary" title={t('redo')} onClick={() => editorApi.current?.redo()}>
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"><path d="M9 4.5 H4.5 A3 3 0 0 0 4.5 10.5 H7" /><path d="M7 2 L9 4.5 L7 7" /></svg>
+                  </button>
+                  <button className="cw-btn cw-btn-sm cw-btn-tertiary" title={t('find')} onClick={() => editorApi.current?.openSearch()}>
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"><circle cx="5.2" cy="5.2" r="3.4" /><path d="M7.8 7.8 L10.5 10.5" /></svg>
+                  </button>
+                  <button
+                    className={showLineNumbers ? 'cw-btn cw-btn-sm is-on' : 'cw-btn cw-btn-sm cw-btn-tertiary'}
+                    title={t('lineNumbers')}
+                    onClick={() => setShowLineNumbers((v) => !v)}
+                  >
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"><path d="M3.5 2.5 H11 M3.5 6 H11 M3.5 9.5 H11" /><path d="M1.4 2.5 H1.5 M1.4 6 H1.5 M1.4 9.5 H1.5" /></svg>
+                  </button>
+                </>
+              )}
             </div>
           </div>
 

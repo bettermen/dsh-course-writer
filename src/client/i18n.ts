@@ -127,6 +127,22 @@ const zh = {
   loreNamePlaceholder: '知识点名称',
   loreContentPlaceholder: '知识点内容或定义',
   copyLinkPrompt: '复制链接',
+  // ── 章节删除 / 拖拽排序 ──
+  deleteChapter: '删除课时',
+  deleteChapterPrefix: '确定删除「',
+  deleteChapterSuffix: '」吗？讲义内容将一并删除，不可恢复。',
+  chapterDeleted: '已删除课时',
+  dragToSort: '拖拽调整顺序',
+  reordering: '正在调整顺序…',
+  reorderSaved: '顺序已保存',
+  reorderFail: '顺序保存失败',
+  deleteChapterFail: '删除失败',
+  // ── CodeMirror 编辑器工具栏 ──
+  undo: '撤销',
+  redo: '重做',
+  find: '查找替换',
+  lineNumbers: '显示行号',
+  editorReady: 'Markdown 编辑器已就绪（⌘F 查找 · ⌘Z 撤销）',
 } as const
 
 const en: Record<keyof typeof zh, string> = {
@@ -241,6 +257,22 @@ const en: Record<keyof typeof zh, string> = {
   loreNamePlaceholder: 'Point name',
   loreContentPlaceholder: 'Point content or definition',
   copyLinkPrompt: 'Copy link',
+  // ── Chapter delete / drag reorder ──
+  deleteChapter: 'Delete Lesson',
+  deleteChapterPrefix: 'Delete "',
+  deleteChapterSuffix: '"? The lesson content will be removed and cannot be undone.',
+  chapterDeleted: 'Lesson deleted',
+  dragToSort: 'Drag to reorder',
+  reordering: 'Reordering…',
+  reorderSaved: 'Order saved',
+  reorderFail: 'Failed to save order',
+  deleteChapterFail: 'Failed to delete lesson',
+  // ── CodeMirror editor toolbar ──
+  undo: 'Undo',
+  redo: 'Redo',
+  find: 'Find & replace',
+  lineNumbers: 'Line numbers',
+  editorReady: 'Markdown editor ready (⌘F find · ⌘Z undo)',
 }
 
 let lang: 'zh' | 'en' = 'zh'

@@ -115,6 +115,14 @@ export function registerNovelRoutes(ctx: Context, assembly: NovelAssembly): void
     const fail = (res: ServerResponse, status: number, code: string, message: string): void => {
       writeJson(res, status, { ok: false, error: { code, message } })
     }
+    /** 错误文案提取：兼容 `throw { code, message }` 形式的领域错误。 */
+    const errText = (error: unknown): string => {
+      if (error instanceof Error) return error.message
+      if (error && typeof error === 'object' && typeof (error as { message?: unknown }).message === 'string') {
+        return (error as { message: string }).message
+      }
+      return String(error)
+    }
 
     wctx.effect(() => wctx.webServer.register({
       kind: 'prefix',
@@ -376,6 +384,42 @@ export function registerNovelRoutes(ctx: Context, assembly: NovelAssembly): void
             fail(res, 404, 'ENTRY_NOT_FOUND', 'unknown resource')
           } catch (error) {
             fail(res, 404, 'ENTRY_NOT_FOUND', String(error))
+          }
+          return
+        }
+        // POST /projects/<id>/chapters/reorder：拖拽排序（order=课时号新顺序，落盘后重编号 1..N）
+        // 注意：必须排在「保存课时」路由之前——两者同为 segments.length===4，靠 segments[3] 区分。
+        if (req.method === 'POST' && segments.length === 4 && segments[0] === 'projects' && segments[2] === 'chapters' && segments[3] === 'reorder' && projectId) {
+          if (!trusted(req)) return fail(res, 403, 'INVALID_STATE', 'forbidden')
+          const svc = novelOf(res)
+          if (!svc) return
+          try {
+            const body = await readJsonBody(req)
+            const raw = Array.isArray(body.order) ? body.order : []
+            const order = raw.map((value) => Number(value)).filter((value) => Number.isInteger(value) && value >= 1)
+            if (!order.length) return fail(res, 400, 'INVALID_FIELD_TYPE', 'order 必须是非空的课时号数组')
+            const chapters = await svc.novel.reorderChapters(projectId, order)
+            writeJson(res, 200, { ok: true, value: chapters })
+          } catch (error) {
+            fail(res, 400, 'INVALID_FIELD_TYPE', errText(error))
+          }
+          return
+        }
+        // POST /projects/<id>/chapters/<no>/delete：删除课时
+        if (req.method === 'POST' && segments.length === 5 && segments[0] === 'projects' && segments[2] === 'chapters' && segments[4] === 'delete' && noText && projectId) {
+          if (!trusted(req)) return fail(res, 403, 'INVALID_STATE', 'forbidden')
+          const svc = novelOf(res)
+          if (!svc) return
+          const chapterNo = Number(noText)
+          if (!Number.isInteger(chapterNo) || chapterNo < 1) {
+            return fail(res, 400, 'INVALID_FIELD_TYPE', `非法课时号: ${noText}`)
+          }
+          try {
+            const result = await svc.novel.deleteChapter(projectId, chapterNo)
+            if (!result.deleted) return fail(res, 404, 'ENTRY_NOT_FOUND', `课时不存在: ${chapterNo}`)
+            writeJson(res, 200, { ok: true, value: result })
+          } catch (error) {
+            fail(res, 400, 'INVALID_FIELD_TYPE', errText(error))
           }
           return
         }

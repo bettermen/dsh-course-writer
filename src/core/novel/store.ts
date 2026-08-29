@@ -12,7 +12,7 @@
  * 容错解析（缺字段默认值、未知字段保留）、旧格式自动迁移。
  */
 import { join } from 'node:path'
-import { mkdir, readdir, readFile } from 'node:fs/promises'
+import { mkdir, readdir, readFile, rm } from 'node:fs/promises'
 import { appendLine, atomicWriteFile, readOptional } from '../atomic-file.ts'
 import { newId, nowIso } from '../util.ts'
 import { createLedger, PHASE_ORDER } from '../workflow/engine.ts'
@@ -285,12 +285,66 @@ export class NovelStore {
   /** 已存在的课时号（解析 chapters/ 下 ch<N>.md；稀疏编号也正确）。 */
   async listChapterNumbers(bookId: string): Promise<number[]> {
     const dir = join(this.bookDir(bookId), 'chapters')
-    const names = await readdir(dir).catch(() => [] as string[])
     const numbers: number[] = []
-    for (const name of names) {
+    for (const name of await readdir(dir).catch(() => [] as string[])) {
       const match = /^ch(\d+)\.md$/.exec(name)
       if (match) numbers.push(Number(match[1]))
     }
     return numbers.sort((a, b) => a - b)
+  }
+
+  /** 删除课时讲义文件。返回 false 表示原本就不存在。 */
+  async deleteChapterFile(bookId: string, no: number): Promise<boolean> {
+    const path = join(this.bookDir(bookId), 'chapters', `ch${no}.md`)
+    if ((await readOptional(path)) === undefined) return false
+    await rm(path, { force: true })
+    return true
+  }
+
+  /**
+   * 按新顺序重排课时（统一重编号为 1..N）。
+   *
+   * @param order 现有课时号数组，按期望的新顺序排列（必须是完整排列，
+   *   否则拒绝执行——避免部分重排造成编号冲突/覆盖）。
+   * @returns 映射表 `[{ from, to }]`。
+   *
+   * 落盘采用三阶段：先复制到暂存目录 → 再删除旧编号 → 最后按新编号写回。
+   * 直接原地 rename 在编号回环（如 1↔2 互换）时会互相覆盖，故必须先腾空。
+   */
+  async reorderChapters(bookId: string, order: number[]): Promise<Array<{ from: number; to: number }>> {
+    const existing = await this.listChapterNumbers(bookId)
+    const unique = Array.from(new Set(order))
+    const sorted = [...unique].sort((a, b) => a - b)
+    if (sorted.length !== existing.length || sorted.some((value, index) => value !== existing[index])) {
+      throw { code: 'INVALID_FIELD_TYPE', message: '课时顺序非法：必须是当前全部课时号的一个排列' } as never
+    }
+    const mapping = unique.map((from, index) => ({ from, to: index + 1 }))
+    if (mapping.every(({ from, to }) => from === to)) return mapping
+    const chaptersDir = join(this.bookDir(bookId), 'chapters')
+    // 阶段 0：原文读入内存 + 落暂存副本（中途崩溃可人工恢复）
+    const staging = join(chaptersDir, `.reorder-${Date.now().toString(36)}`)
+    await mkdir(staging, { recursive: true, mode: 0o700 })
+    const payload: Array<{ to: number; raw: string }> = []
+    for (const { from, to } of mapping) {
+      const raw = await readOptional(join(chaptersDir, `ch${from}.md`))
+      if (raw === undefined) continue
+      await atomicWriteFile(join(staging, `s${to}.md`), raw)
+      payload.push({ to, raw })
+    }
+    // 阶段 1：清空旧编号（暂存区已有副本，可恢复）
+    for (const { from } of mapping) await rm(join(chaptersDir, `ch${from}.md`), { force: true })
+    // 阶段 2：按新编号写回，frontmatter 内的 no 同步更新
+    const now = nowIso()
+    for (const { to, raw } of payload) {
+      const parsed = parseChapterFrontmatter(raw)
+      const chapter: Chapter = parsed
+        ? { ...parsed.chapter, no: to, updatedAt: now }
+        : { no: to, title: `第 ${to} 章`, status: 'draft', version: 1, words: 0, createdAt: now, updatedAt: now }
+      const body = parsed ? parsed.body : raw
+      await atomicWriteFile(join(chaptersDir, `ch${to}.md`), `${encodeChapterFrontmatter(chapter)}${body.trimEnd()}\n`)
+    }
+    // 阶段 3：清理暂存区
+    await rm(staging, { recursive: true, force: true })
+    return mapping
   }
 }

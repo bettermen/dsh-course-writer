@@ -65,6 +65,43 @@ export class VariableStoreFile {
     return changed
   }
 
+  /**
+   * 删除课时后清理扫描游标。
+   * 已累积的变量值不做回滚（事实清除走账本 dropChapter），仅让游标不再指向已删除课时。
+   */
+  async dropChapter(bookId: string, chapterNo: number): Promise<void> {
+    const data = await this.load()
+    const state = data.books[bookId]
+    if (!state) return
+    state.processed_chapter_numbers = state.processed_chapter_numbers.filter((no) => no !== chapterNo)
+    if (state.last_scanned_chapter === chapterNo) {
+      state.last_scanned_chapter = state.processed_chapter_numbers.at(-1) ?? 0
+    }
+    data.books[bookId] = state
+    await this.save(data)
+  }
+
+  /**
+   * 按给定课时顺序重建书级局部变量。
+   * 局部变量是按课时顺序累积的（后者覆盖前者），重排后必须重放，
+   * 否则「第 3 课」的取值会留在被它顶替的位置上。
+   */
+  async rebuildBook(bookId: string, chapters: Array<{ no: number; text: string }>): Promise<void> {
+    const data = await this.load()
+    const state = freshBookState()
+    // 以书级持久变量为初始状态（InitVar 模板镜像），再按新顺序重放 patch
+    if (data.book_variables[bookId]) {
+      state.local_variables = { [DEFAULT_KEY]: JSON.parse(JSON.stringify(data.book_variables[bookId])) }
+    }
+    for (const chapter of chapters) {
+      applyPatchOperations(state.local_variables, extractJsonPatchOperations(chapter.text))
+      state.processed_chapter_numbers.push(chapter.no)
+      state.last_scanned_chapter = chapter.no
+    }
+    data.books[bookId] = state
+    await this.save(data)
+  }
+
   /** 初始化书级变量（InitVar 模板缺失时填充）。返回是否写入。 */
   async ensureBookVariables(bookId: string, initTemplate: Record<string, unknown> | null): Promise<boolean> {
     const data = await this.load()

@@ -51,7 +51,7 @@ export interface PhaseRecord {
 export interface AuditEvent {
   seq: number
   at: string
-  action: 'enter' | 'submit' | 'reopen' | 'skip' | 'force' | 'rollback' | 'create'
+  action: 'enter' | 'submit' | 'reopen' | 'skip' | 'force' | 'rollback' | 'create' | 'delete' | 'reorder'
   phase: PhaseId
   /** 触发方：user | agent | system。 */
   actor: 'user' | 'agent' | 'system'

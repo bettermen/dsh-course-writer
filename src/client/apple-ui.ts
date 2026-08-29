@@ -321,6 +321,25 @@ ${Object.keys(darkTokens).map((k) => `  --cw-${k}: ${(darkTokens as Record<strin
 }
 .cw-scroll::-webkit-scrollbar-thumb:hover { background: var(--cw-tertiaryLabel); background-clip: content-box; }
 
+/* ---------- Markdown 编辑器外壳（CodeMirror 6）---------- */
+/* CodeMirror 自带 .cm-editor flex 布局，需让它在 .cw-card 里撑满剩余高度 */
+.cw-md-shell { padding: 0; overflow: hidden; }
+.cw-md-shell .cm-editor { flex: 1; min-height: 0; }
+.cw-md-shell .cm-editor.cm-focused { outline: none; }
+/* 复用 .cw-scroll 的细滚动条观感（CodeMirror 的滚动容器是 .cm-scroller） */
+.cw-md-shell .cm-scroller { scrollbar-width: thin; scrollbar-color: var(--cw-quaternaryLabel) transparent; }
+.cw-md-shell .cm-scroller::-webkit-scrollbar { width: 8px; height: 8px; }
+.cw-md-shell .cm-scroller::-webkit-scrollbar-track { background: transparent; }
+.cw-md-shell .cm-scroller::-webkit-scrollbar-thumb {
+  background: var(--cw-quaternaryLabel);
+  border-radius: var(--cw-r-pill);
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+.cw-md-shell .cm-scroller::-webkit-scrollbar-thumb:hover { background: var(--cw-tertiaryLabel); background-clip: content-box; }
+/* 切换型按钮的激活态（如「显示行号」） */
+.cw-btn.is-on { background: color-mix(in srgb, var(--cw-blue) 14%, transparent); border-color: var(--cw-blue); color: var(--cw-blue); }
+
 /* ---------- 文本层级 ---------- */
 .cw-title { font-size: 15px; font-weight: 590; letter-spacing: -0.01em; color: var(--cw-label); }
 .cw-caption { font-size: 12px; color: var(--cw-secondaryLabel); }
@@ -428,6 +447,27 @@ ${Object.keys(darkTokens).map((k) => `  --cw-${k}: ${(darkTokens as Record<strin
 .cw-drag-handle:hover { color: var(--cw-secondaryLabel); }
 .cw-drag-handle:active { cursor: grabbing; }
 .cw-list-item.is-dragging { opacity: 0.45; }
+/* 落点指示（Apple 用 2pt 蓝色插入条，不用整行高亮） */
+.cw-list-item.is-drop-target {
+  box-shadow: inset 0 2px 0 -0.5px var(--cw-blue);
+  background: color-mix(in srgb, var(--cw-blue) 8%, transparent);
+}
+/* 课时删除按钮：常态隐形，悬停/键盘聚焦时浮现（Apple 的反侵入式操作） */
+.cw-chapter-del {
+  width: 18px;
+  height: 18px;
+  min-height: 18px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--cw-tertiaryLabel);
+  opacity: 0;
+  flex-shrink: 0;
+  transition: opacity 0.15s var(--cw-ease), color 0.15s var(--cw-ease);
+}
+.cw-list-item:hover .cw-chapter-del,
+.cw-chapter-del:focus-visible { opacity: 1; }
+.cw-chapter-del:hover { color: var(--cw-red); }
 
 /* ---------- 知识图谱 ---------- */
 .cw-graph { width: 100%; height: 100%; display: block; }

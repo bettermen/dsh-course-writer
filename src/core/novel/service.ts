@@ -225,6 +225,70 @@ export class NovelService {
     return items
   }
 
+  /**
+   * 删除课时：移除讲义文件 → 修正 Book 统计 → 清除该课时账本事实与变量游标 → 审计。
+   * 删除后**不做重编号**（保留稀疏编号），避免外部引用（分享链接、账本、AI 上下文）失效。
+   */
+  async deleteChapter(bookId: string, chapterNo: number): Promise<{ deleted: boolean; words: number }> {
+    const book = await this.store.loadBook(bookId)
+    const removed = await this.store.readChapter(bookId, chapterNo)
+    const deleted = await this.store.deleteChapterFile(bookId, chapterNo)
+    if (!deleted) return { deleted: false, words: 0 }
+    const words = removed?.chapter.words ?? 0
+    const now = new Date().toISOString()
+    await this.store.saveBook({
+      ...book,
+      stats: {
+        totalWords: Math.max(0, book.stats.totalWords - words),
+        chapterCount: Math.max(0, book.stats.chapterCount - 1),
+        lastWriteAt: now,
+      },
+      updatedAt: now,
+    })
+    // 账本：清除该课时产生的事实条目（否则一致性巡检会读到幽灵数据）
+    const { LedgerStore, ledgerFilePath } = await import('../consistency/store.ts')
+    await new LedgerStore(ledgerFilePath(this.store.getBookDir(bookId))).dropChapter(chapterNo)
+    // 变量：清理扫描游标
+    await this.variables.dropChapter(bookId, chapterNo)
+    await this.store.appendAudit(bookId, {
+      at: now,
+      action: 'delete',
+      phase: 'writing',
+      actor: 'user',
+      detail: `chapter ${chapterNo} deleted (${words} chars)`,
+    })
+    return { deleted: true, words }
+  }
+
+  /**
+   * 拖拽排序：order 为当前课时号按新顺序的排列，落盘后统一重编号为 1..N。
+   * 同步修正账本课时号、按新顺序重建局部变量、写审计。
+   * @returns 重排后的课时清单（no/title/words）。
+   */
+  async reorderChapters(bookId: string, order: number[]): Promise<Array<{ no: number; title: string; words: number }>> {
+    const mapping = await this.store.reorderChapters(bookId, order)
+    const chapters = await this.allChapters(bookId)
+    if (mapping.some(({ from, to }) => from !== to)) {
+      const book = await this.store.loadBook(bookId)
+      const now = new Date().toISOString()
+      await this.store.saveBook({ ...book, stats: { ...book.stats, lastWriteAt: now }, updatedAt: now })
+      // 账本：课时号随重排重映射（ch3 → ch1），保持事实归属正确
+      const { LedgerStore, ledgerFilePath } = await import('../consistency/store.ts')
+      const remap = new Map(mapping.map(({ from, to }) => [from, to]))
+      await new LedgerStore(ledgerFilePath(this.store.getBookDir(bookId))).remapChapterNumbers(remap)
+      // 变量：局部变量按课时顺序累积，重排后必须按新顺序重放
+      await this.variables.rebuildBook(bookId, chapters.map(({ chapter, content }) => ({ no: chapter.no, text: content })))
+      await this.store.appendAudit(bookId, {
+        at: now,
+        action: 'reorder',
+        phase: 'writing',
+        actor: 'user',
+        detail: `chapters reordered (${mapping.filter(({ from, to }) => from !== to).length}/${mapping.length} moved)`,
+      })
+    }
+    return chapters.map(({ chapter }) => ({ no: chapter.no, title: chapter.title, words: chapter.words }))
+  }
+
   /** 重命名课程（同步更新 book.title 与 config.title）。 */
   async renameProject(bookId: string, title: string): Promise<Book> {
     const trimmed = String(title).trim()

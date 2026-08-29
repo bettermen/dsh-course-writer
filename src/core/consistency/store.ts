@@ -84,6 +84,32 @@ export class LedgerStore {
     return added.length
   }
 
+  /** 清除某课时产生的账本条目（删除课时用）。返回清除条数。 */
+  async dropChapter(chapterNo: number): Promise<number> {
+    const entries = await this.load()
+    const kept = entries.filter((entry) => entry.chapterNo !== chapterNo && entry.source !== `ch${chapterNo}`)
+    if (kept.length === entries.length) return 0
+    await this.save(kept)
+    return entries.length - kept.length
+  }
+
+  /**
+   * 课时重排后重映射条目课时号（如 ch3 → ch1）。
+   * @param mapping 旧课时号 → 新课时号；未出现在映射中的课时号保持原样。
+   */
+  async remapChapterNumbers(mapping: Map<number, number>): Promise<number> {
+    if (mapping.size === 0) return 0
+    let touched = 0
+    const next = (await this.load()).map((entry) => {
+      const to = mapping.get(entry.chapterNo)
+      if (to === undefined || to === entry.chapterNo) return entry
+      touched += 1
+      return { ...entry, chapterNo: to, source: `ch${to}` }
+    })
+    if (touched) await this.save(next)
+    return touched
+  }
+
   /** 记录一条显式账本变更（工具/模型直接调用）。 */
   async record(entry: Omit<LedgerEntry, 'source'>, source: string): Promise<void> {
     const entries = await this.load()

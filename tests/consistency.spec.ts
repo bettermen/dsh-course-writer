@@ -60,6 +60,38 @@ describe('consistency — ledger store', () => {
     expect(byEntity).toHaveLength(1)
     expect(byEntity[0]?.field).toBe('境界')
   })
+
+  it('dropChapter 只清除目标课时的事实（按 chapterNo 与 source 双重匹配）', async () => {
+    const ledger = await freshLedger()
+    await ledger.record({ entity: '林远', field: '境界', value: '练气', chapterNo: 1, confidence: 'high' }, 'ch1')
+    await ledger.record({ entity: '林远', field: '境界', value: '筑基', chapterNo: 2, confidence: 'high' }, 'ch2')
+    await ledger.record({ entity: '苏瑶', field: '灵石', value: '100', chapterNo: 3, confidence: 'high' }, 'ch3')
+    const removed = await ledger.dropChapter(2)
+    expect(removed).toBe(1)
+    const left = await ledger.all()
+    expect(left.map((e) => e.chapterNo)).toEqual([1, 3])
+    // 重复调用幂等
+    expect(await ledger.dropChapter(2)).toBe(0)
+  })
+
+  it('remapChapterNumbers 重排后把事实搬到新课时号', async () => {
+    const ledger = await freshLedger()
+    await ledger.record({ entity: '林远', field: '境界', value: '练气', chapterNo: 1, confidence: 'high' }, 'ch1')
+    await ledger.record({ entity: '苏瑶', field: '灵石', value: '100', chapterNo: 3, confidence: 'high' }, 'ch3')
+    // 新顺序 [3, 2, 1] → 第 3 课变第 1 课，第 1 课变第 3 课
+    const touched = await ledger.remapChapterNumbers(new Map([[1, 3], [2, 2], [3, 1]]))
+    expect(touched).toBe(2)
+    const entries = await ledger.all()
+    expect(entries.find((e) => e.entity === '苏瑶')).toMatchObject({ chapterNo: 1, source: 'ch1' })
+    expect(entries.find((e) => e.entity === '林远')).toMatchObject({ chapterNo: 3, source: 'ch3' })
+  })
+
+  it('remapChapterNumbers 空映射时不落盘', async () => {
+    const ledger = await freshLedger()
+    await ledger.record({ entity: '林远', field: '境界', value: '练气', chapterNo: 1, confidence: 'high' }, 'ch1')
+    expect(await ledger.remapChapterNumbers(new Map())).toBe(0)
+    expect(await ledger.all()).toHaveLength(1)
+  })
 })
 
 describe('consistency — conflict detection', () => {

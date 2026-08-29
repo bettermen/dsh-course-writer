@@ -140,6 +140,119 @@ describe('NovelService — chapters', () => {
   })
 })
 
+describe('NovelService — 课时删除与重排', () => {
+  it('deleteChapter 回退统计、清理账本事实并写审计', async () => {
+    const { service, store } = await freshService()
+    const book = await service.createProject('A', 'x')
+    const text = '讲义……<JSONPatch>[{"op":"replace","path":"/stat_data/学员/阶段","value":"入门"}]</JSONPatch>'
+    await service.saveChapter(book.id, 1, '第一课', '字'.repeat(100))
+    await service.saveChapter(book.id, 2, '第二课', text)
+    const before = await service.load(book.id)
+    expect(before.stats.chapterCount).toBe(2)
+
+    const result = await service.deleteChapter(book.id, 2)
+    expect(result.deleted).toBe(true)
+    expect(result.words).toBeGreaterThan(0)
+
+    const after = await service.load(book.id)
+    expect(after.stats.chapterCount).toBe(1)
+    expect(after.stats.totalWords).toBe(100)
+
+    // 课时文件已移除，剩余课时保持原编号（稀疏）
+    expect(await store.listChapterNumbers(book.id)).toEqual([1])
+
+    // 账本：第 2 课产生的事实条目已清除
+    const { LedgerStore, ledgerFilePath } = await import('../src/core/consistency/store.ts')
+    const ledger = new LedgerStore(ledgerFilePath(store.getBookDir(book.id)))
+    expect((await ledger.all()).some((e) => e.chapterNo === 2)).toBe(false)
+
+    // 审计：新增 delete 事件
+    const audit = await store.readAudit(book.id)
+    const deleted = audit.filter((e) => e.action === 'delete')
+    expect(deleted.length).toBe(1)
+    expect(deleted[0]?.detail).toContain('chapter 2 deleted')
+  })
+
+  it('deleteChapter 对不存在的课时返回 deleted=false', async () => {
+    const { service } = await freshService()
+    const book = await service.createProject('A', 'x')
+    await service.saveChapter(book.id, 1, '第一课', '内容')
+    const result = await service.deleteChapter(book.id, 9)
+    expect(result).toEqual({ deleted: false, words: 0 })
+    // 统计不受影响
+    expect((await service.load(book.id)).stats.chapterCount).toBe(1)
+  })
+
+  it('deleteChapter 后新建课时不会撞号（编号稀疏 → 取 max+1）', async () => {
+    const { service, store } = await freshService()
+    const book = await service.createProject('A', 'x')
+    await service.saveChapter(book.id, 1, '第一课', '一')
+    await service.saveChapter(book.id, 2, '第二课', '二')
+    await service.saveChapter(book.id, 3, '第三课', '三')
+    await service.deleteChapter(book.id, 2)
+    // 剩余 1、3 → 下一课必须是 4，不能用 length+1（=3，会覆盖第三课）
+    const next = (await store.listChapterNumbers(book.id)).reduce((m, n) => Math.max(m, n), 0) + 1
+    expect(next).toBe(4)
+    await service.saveChapter(book.id, next, '第四课', '四')
+    expect((await store.readChapter(book.id, 3))?.content).toBe('三')
+  })
+
+  it('reorderChapters 重排内容并同步账本课时号', async () => {
+    const { service, store } = await freshService()
+    const book = await service.createProject('A', 'x')
+    await service.saveChapter(book.id, 1, '第一课', 'A'.repeat(30))
+    await service.saveChapter(book.id, 2, '第二课', 'B'.repeat(30))
+    await service.saveChapter(book.id, 3, '第三课', '正文<JSONPatch>[{"op":"replace","path":"/stat_data/学员/阶段","value":"进阶"}]</JSONPatch>')
+
+    const list = await service.reorderChapters(book.id, [3, 1, 2])
+    expect(list.map((c) => c.no)).toEqual([1, 2, 3])
+    expect(list.map((c) => c.title)).toEqual(['第三课', '第一课', '第二课'])
+
+    // 内容随课时搬家
+    expect((await service.chapterText(book.id, 1)).startsWith('正文')).toBe(true)
+    expect((await service.chapterText(book.id, 2)).startsWith('AAAA')).toBe(true)
+    expect((await service.chapterText(book.id, 3)).startsWith('BBBB')).toBe(true)
+
+    // 账本：事实条目跟着第 3 课一起搬到第 1 课
+    const { LedgerStore, ledgerFilePath } = await import('../src/core/consistency/store.ts')
+    const entries = await new LedgerStore(ledgerFilePath(store.getBookDir(book.id))).all()
+    expect(entries.length).toBe(1)
+    expect(entries[0]?.chapterNo).toBe(1)
+    expect(entries[0]?.source).toBe('ch1')
+
+    // 审计：新增 reorder 事件
+    const audit = await store.readAudit(book.id)
+    expect(audit.filter((e) => e.action === 'reorder').length).toBe(1)
+  })
+
+  it('reorderChapters 顺序未变时不写审计、不破坏数据', async () => {
+    const { service, store } = await freshService()
+    const book = await service.createProject('A', 'x')
+    await service.saveChapter(book.id, 1, '第一课', '一')
+    await service.saveChapter(book.id, 2, '第二课', '二')
+    const before = (await store.readAudit(book.id)).length
+    const list = await service.reorderChapters(book.id, [1, 2])
+    expect(list.map((c) => c.title)).toEqual(['第一课', '第二课'])
+    expect(await service.chapterText(book.id, 1)).toBe('一')
+    expect(await service.chapterText(book.id, 2)).toBe('二')
+    // 无位移 → 不追加 reorder 审计
+    expect((await store.readAudit(book.id)).filter((e) => e.action === 'reorder').length).toBe(0)
+    expect((await store.readAudit(book.id)).length).toBe(before)
+  })
+
+  it('reorderChapters 拒绝非法顺序', async () => {
+    const { service } = await freshService()
+    const book = await service.createProject('A', 'x')
+    await service.saveChapter(book.id, 1, '第一课', '一')
+    await service.saveChapter(book.id, 2, '第二课', '二')
+    const error = await catchError(service.reorderChapters(book.id, [2]))
+    expect(error.code).toBe('INVALID_FIELD_TYPE')
+    // 原始顺序保持不变
+    expect(await service.chapterText(book.id, 1)).toBe('一')
+    expect(await service.chapterText(book.id, 2)).toBe('二')
+  })
+})
+
 describe('NovelService — 模板复制（§3.5-11 cloneProject）', () => {
   it('clones config + stage artifacts, not chapters; resets state machine', async () => {
     const { service } = await freshService()

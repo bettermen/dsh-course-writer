@@ -1,4 +1,7 @@
-import { describe, expect, it } from 'vitest'
+import { mkdtemp, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { afterEach, describe, expect, it } from 'vitest'
 import {
   applyPatchOperations,
   DEFAULT_VARIABLE_NAME,
@@ -8,8 +11,21 @@ import {
   parseInitVarTemplate,
   renderNameMacros,
   renderVariables,
+  VariableStoreFile,
+  variablesFilePath,
 } from '../src/core/variables/index.ts'
 import type { VariableContext } from '../src/core/variables/index.ts'
+
+const roots: string[] = []
+afterEach(async () => {
+  await Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true })))
+})
+
+async function freshVariableStore(): Promise<VariableStoreFile> {
+  const dir = await mkdtemp(join(tmpdir(), 'vars-'))
+  roots.push(dir)
+  return new VariableStoreFile(variablesFilePath(dir))
+}
 
 describe('variables — YAML-like parsing', () => {
   it('parses nested objects, arrays and typed scalars', () => {
@@ -160,3 +176,57 @@ describe('variables — macro rendering', () => {
 
 /** 类型冒烟：默认变量根键存在。 */
 void DEFAULT_VARIABLE_NAME
+
+describe('VariableStoreFile — 课时删除与重排', () => {
+  const patch = (value: string): string =>
+    `<JSONPatch>[{"op":"replace","path":"/stat_data/境界","value":"${value}"}]</JSONPatch>`
+
+  it('rebuildBook 按新课时顺序重放 patch（后者覆盖前者）', async () => {
+    const store = await freshVariableStore()
+    // replace 不创建缺失父路径 → 先用 InitVar 模板播种（真实项目即如此）
+    await store.ensureBookVariables('bk_1', { 境界: '未入门' })
+    await store.applyChapterPatch('bk_1', 1, patch('练气'))
+    await store.applyChapterPatch('bk_1', 2, patch('筑基'))
+    await store.applyChapterPatch('bk_1', 3, patch('金丹'))
+    expect((await store.load()).books.bk_1?.local_variables).toEqual({ stat_data: { 境界: '金丹' } })
+
+    // 重排为 [3, 2, 1] → 最后一课是原第 1 课（练气），重放后应为练气
+    await store.rebuildBook('bk_1', [
+      { no: 1, text: patch('金丹') },
+      { no: 2, text: patch('筑基') },
+      { no: 3, text: patch('练气') },
+    ])
+    const state = (await store.load()).books.bk_1
+    expect(state?.local_variables).toEqual({ stat_data: { 境界: '练气' } })
+    expect(state?.processed_chapter_numbers).toEqual([1, 2, 3])
+    expect(state?.last_scanned_chapter).toBe(3)
+  })
+
+  it('rebuildBook 以书级持久变量为初始状态（保留 InitVar 模板字段）', async () => {
+    const store = await freshVariableStore()
+    await store.ensureBookVariables('bk_1', { 境界: '未入门', 灵石: 0 })
+    await store.rebuildBook('bk_1', [{ no: 1, text: patch('筑基') }])
+    expect((await store.load()).books.bk_1?.local_variables).toEqual({ stat_data: { 境界: '筑基', 灵石: 0 } })
+  })
+
+  it('dropChapter 清理扫描游标且不影响已累积值', async () => {
+    const store = await freshVariableStore()
+    await store.ensureBookVariables('bk_1', { 境界: '未入门' })
+    await store.applyChapterPatch('bk_1', 1, patch('练气'))
+    await store.applyChapterPatch('bk_1', 2, patch('筑基'))
+    expect((await store.load()).books.bk_1?.last_scanned_chapter).toBe(2)
+
+    await store.dropChapter('bk_1', 2)
+    const state = (await store.load()).books.bk_1
+    expect(state?.processed_chapter_numbers).toEqual([1])
+    expect(state?.last_scanned_chapter).toBe(1)
+    // 已累积值不回滚（事实清除由账本 dropChapter 负责）
+    expect(state?.local_variables).toEqual({ stat_data: { 境界: '筑基' } })
+  })
+
+  it('dropChapter 对未登记的课程是幂等的空操作', async () => {
+    const store = await freshVariableStore()
+    await store.dropChapter('bk_missing', 1)
+    expect((await store.load()).books.bk_missing).toBeUndefined()
+  })
+})

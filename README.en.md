@@ -20,7 +20,7 @@ Let DSH work with you like a professional curriculum author: from topic selectio
 ## ✨ Features
 
 ### Three-pane workspace
-- **Left pane**: chapter list + nine-phase gated navigation (progress x/9, phase lock / in-progress / approved states)
+- **Left pane**: chapter list (**drag to reorder** + hover-to-delete + context menu) + nine-phase gated navigation (progress x/9, phase lock / in-progress / approved states)
 - **Center pane**: Markdown editor + split preview + chapter title editing + manual save / auto-save (2s after typing stops)
 - **Right pane**: lorebook (knowledge-point management) / knowledge graph (visualized knowledge structure)
 
@@ -133,10 +133,23 @@ projects/       projects (book.json + chapters/ + audit.jsonl + ...)
 ### 1️⃣ Create a course
 - Top "＋新建" → modal with course name + course-type dropdown (23 types, grouped) → create
 
-### 2️⃣ Write chapters
-- Left pane chapter list to switch; center pane edits Markdown
+### 2️⃣ Write chapters (CodeMirror editor)
+- Left pane chapter list to switch; center pane is a **CodeMirror 6 Markdown editor**
+- Markdown syntax highlighting: headings, bold, italic, strikethrough, quotes, lists, links, inline code, fenced code blocks
+- Soft line wrapping; lists / block quotes auto-continue on Enter; auto-paired quotes/brackets
+- Undo / redo, find & replace, optional line numbers
 - Chapter title editable (top input)
 - Save: click "保存", or auto-saves 2s after typing stops (status shows "● unsaved / ✓ saved")
+- Search panel comes from CodeMirror (English UI); shortcuts ⌘F find, ⌘Z undo
+
+### 2.5️⃣ Delete & drag reorder
+- **Delete**: hover a chapter row → ✕ button fades in on the right; or **right-click → 删除课时** (confirms first)
+- **Reorder**: drag a chapter row onto its target position; a blue insertion bar marks the drop point, release to save
+- Context menu also offers: preview / new lesson / copy title
+- Semantics:
+  - Delete **keeps sparse numbering** (deleting lesson 2 leaves 1, 3) so external references (share links, ledger, AI context) stay valid; a new lesson takes `max(no)+1` and never collides
+  - Reorder **renumbers everything to 1..N** and re-maps the consistency ledger, then replays course variables in the new order
+  - Both actions are written to the audit log (`action: delete` / `reorder`)
 
 ### 3️⃣ Lorebook (knowledge points)
 - Right pane "资料库" → "＋ 新建知识点" → name / content / keywords (comma-separated)

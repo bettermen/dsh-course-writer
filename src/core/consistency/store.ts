@@ -1,5 +1,5 @@
 /**
- * dsh-course-writer — 账本与时间线存储（P2-D）。
+ * xiashuo — 账本与时间线存储（P2-D）。
  * ledger.json / timeline.json 位于项目目录（VersionedFile 外壳）。
  * 账本增量来自课时 <JSONPatch>（与变量引擎同源，方案 v3 融合设计）。
  */

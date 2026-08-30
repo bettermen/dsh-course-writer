@@ -1,5 +1,5 @@
 /**
- * dsh-course-writer — 九阶段流程状态机引擎（P1-A）。
+ * xiashuo — 九阶段流程状态机引擎（P1-A）。
  *
  * 纯函数设计：所有操作接收 PhaseLedger 返回新 ledger + 审计事件，
  * 无 IO 无 cordis 依赖（持久化在 P1-B）。门禁规则（DEVELOPMENT-PLAN §3.1）：

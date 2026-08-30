@@ -1,5 +1,5 @@
 /**
- * dsh-course-writer — lorebook 业务服务层（模块 3）。
+ * xiashuo — lorebook 业务服务层（模块 3）。
  *
  * 职责：条目/分组 CRUD + 三格式导入解析（Operit / SillyTavern lorebook /
  * character_book）。移植自夏瑾 worldbook_service.js（783 行），修复点：

@@ -1,5 +1,5 @@
 /**
- * dsh-course-writer — Apple HIG 设计系统。
+ * xiashuo — Apple HIG 设计系统。
  *
  * 设计令牌（浅色/深色双模式）+ 控件样式表 + 系统外观订阅。
  * 用注入样式表而非内联 style：内联无法表达 :hover / :active / :focus-visible /

@@ -1,5 +1,5 @@
 /**
- * dsh-course-writer — agent 预设同步（P2-I）。
+ * xiashuo — agent 预设同步（P2-I）。
  * 随包分发 assets/presets/course-writer/{preset.yml,agent.cordis.yml}，
  * host 启用时同步到 ~/.dsh/.agent-presets/course-writer/（幂等覆盖，
  * 仿 dsh-liangshen 同步思路：只写不删，升级自动更新）。
@@ -22,7 +22,7 @@ export async function syncAgentPreset(ctx: Context, dshHome: string): Promise<{ 
     await cp(PRESET_DIR, target, { recursive: true, force: true })
     return { target, files: 2 }
   } catch (error) {
-    ctx.logger?.warn?.('[dsh-course-writer] 预设同步失败: ' + String(error))
+    ctx.logger?.warn?.('[xiashuo] 预设同步失败: ' + String(error))
     return null
   }
 }

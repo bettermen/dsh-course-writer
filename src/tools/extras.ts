@@ -1,5 +1,5 @@
 /**
- * dsh-course-writer — 扩展工具（P2-G）：铺垫/灵感/术语/一致性巡检/时间线/修订/导出。
+ * xiashuo — 扩展工具（P2-G）：铺垫/灵感/术语/一致性巡检/时间线/修订/导出。
  * 铺垫/术语/灵感/账本/时间线按项目隔离（bookDirOf 定位，工具内构造 store）。
  */
 import type { Context } from '@deepseek-ai/cordis'

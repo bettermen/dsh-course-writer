@@ -1,5 +1,5 @@
 /**
- * dsh-course-writer — 创作流程 agent 工具注册（P1-F3）。
+ * xiashuo — 创作流程 agent 工具注册（P1-F3）。
  *
  * 工具集：course_projects / course_phase / course_commit / course_override /
  * course_write_chapter / course_commit_chapter / course_audit / course_stats。

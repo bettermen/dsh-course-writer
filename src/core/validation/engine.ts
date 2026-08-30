@@ -1,5 +1,5 @@
 /**
- * dsh-course-writer — 四族校验引擎（P2-C）。
+ * xiashuo — 四族校验引擎（P2-C）。
  *
  * 规则族（DEVELOPMENT-PLAN §3.4）：
  *  - 结构族：课时字数区间 / 标题规范 / 编号连续

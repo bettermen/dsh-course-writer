@@ -1,5 +1,5 @@
 #!/bin/bash
-# dsh-course-writer host build: compile src/ -> lib/ with the project-local tsc.
+# xiashuo host build: compile src/ -> lib/ with the project-local tsc.
 # (dev_build_plugin compatible: runs `bash scripts/build.sh`, then `build:client`.)
 set -euo pipefail
 

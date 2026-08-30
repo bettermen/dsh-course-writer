@@ -89,23 +89,23 @@ The plugin ships a **「虾说」agent preset**, selectable in DSH's new-session
 ### ① Let an AI install it (recommended)
 Paste this to any command-capable AI:
 
-> Install the DSH plugin "虾说" (dsh-course-writer), **LATEST version only**. From `https://github.com/bettermen/dsh-course-writer/releases/latest` download the newest `dsh-external-dsh-course-writer-*.tgz` (highest version) → run `dsh plugin --profile web add <absolute tgz path>` → confirm with `dsh plugin list` → tell me to refresh the DSH page (Ctrl+Shift+R) so the sidebar entry appears. Report any error first.
+> Install the DSH plugin "虾说" (xiashuo), **LATEST version only**. From `https://github.com/bettermen/xiashuo/releases/latest` download the newest `dsh-external-xiashuo-*.tgz` (highest version) → run `dsh plugin --profile web add <absolute tgz path>` → confirm with `dsh plugin list` → tell me to refresh the DSH page (Ctrl+Shift+R) so the sidebar entry appears. Report any error first.
 
 ### ② Manual install
-Download the newest `dsh-external-dsh-course-writer-*.tgz` from https://github.com/bettermen/dsh-course-writer/releases/latest, then:
+Download the newest `dsh-external-xiashuo-*.tgz` from https://github.com/bettermen/xiashuo/releases/latest, then:
 
 ```bash
 dsh plugin --profile web add <path-to-tgz>
-dsh plugin list        # dsh-course-writer listed = success
+dsh plugin list        # xiashuo listed = success
 ```
 
 ### ③ Build from source (advanced)
 Requires Node ≥22 and Git:
 
 ```bash
-git clone https://github.com/bettermen/dsh-course-writer.git && cd dsh-course-writer
+git clone https://github.com/bettermen/xiashuo.git && cd xiashuo
 npm install && npm run build && npm pack
-dsh plugin --profile web add ./dsh-external-dsh-course-writer-0.5.0.tgz
+dsh plugin --profile web add ./dsh-external-xiashuo-0.6.0.tgz
 ```
 
 **After install**: the sidebar "虾说" entry and the settings card appear; if not, refresh/restart DSH and check the plugin is enabled.
@@ -119,7 +119,7 @@ dsh plugin --profile web add ./dsh-external-dsh-course-writer-0.5.0.tgz
 3. Right pane "资料库" to enter knowledge points (with keywords); "知识图谱" to view the structure
 4. Top "导出" to download TXT or Word; "分享" to generate a collaboration link
 
-Data lives in `~/.dsh/dsh-course-writer/` by default:
+Data lives in `~/.dsh/xiashuo/` by default:
 
 ```
 lorebook/       knowledge points (entries)
@@ -191,7 +191,7 @@ Notes:
 | Setting | Default | Description |
 | --- | --- | --- |
 | enabled | true | Plugin master switch (disable unregisters tools/skill; data kept) |
-| dataDir | `~/.dsh/dsh-course-writer` | Data root directory |
+| dataDir | `~/.dsh/xiashuo` | Data root directory |
 | uiHidden | false | Hide the sidebar "虾说" entry |
 
 ---
@@ -200,7 +200,7 @@ Notes:
 
 - **agent tools**: `course_*` (project/phase/write/validate/export…) + `lorebook_*` (lorebook CRUD)
 - **skill**: `course-writing-workflow` (nine-phase methodology guidance)
-- **GUI API**: `/api/course-writer/*` (projects/chapters/export/share/lorebook, fence-header protected)
+- **GUI API**: `/api/xiashuo/*` (projects/chapters/export/share/lorebook, fence-header protected)
 
 ---
 
@@ -233,7 +233,7 @@ npm pack            # pack to tgz
 
 ## 🛡 Security model
 
-- Local-only storage under `~/.dsh/dsh-course-writer/`, no network upload
+- Local-only storage under `~/.dsh/xiashuo/`, no network upload
 - All writes audit-logged
 - GUI routes carry a custom fence header (anti CSRF / DNS-rebinding)
 - Share endpoints use token auth + separate nginx pass-through; admin credentials never exposed

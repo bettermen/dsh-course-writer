@@ -1,5 +1,5 @@
 /**
- * dsh-course-writer — Markdown 编辑命令（纯函数层）。
+ * xiashuo — Markdown 编辑命令（纯函数层）。
  *
  * 设计要点：所有命令都是 `(DocState) => DocState` 的纯函数，只做
  * 「原文 + 选区 → 新文 + 新选区」的变换，不 import 任何 CodeMirror / DOM。

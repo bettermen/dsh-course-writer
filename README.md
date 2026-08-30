@@ -91,23 +91,23 @@
 ### ① 一句话让 AI 装（推荐）
 把下面这段发给能执行命令的 AI：
 
-> 帮我安装 DSH 插件「虾说」(dsh-course-writer)，**只装最新版**。步骤：从 `https://github.com/bettermen/dsh-course-writer/releases/latest` 下载最新的 `dsh-external-dsh-course-writer-*.tgz`（版本号最大的那个）→ 执行 `dsh plugin --profile web add <该 tgz 绝对路径>` → `dsh plugin list` 确认在列且已启用 → 提醒我刷新 DSH 页面（Ctrl+Shift+R）后侧边栏出现「虾说」。遇到报错先告诉我再处理。
+> 帮我安装 DSH 插件「虾说」(xiashuo)，**只装最新版**。步骤：从 `https://github.com/bettermen/xiashuo/releases/latest` 下载最新的 `dsh-external-xiashuo-*.tgz`（版本号最大的那个）→ 执行 `dsh plugin --profile web add <该 tgz 绝对路径>` → `dsh plugin list` 确认在列且已启用 → 提醒我刷新 DSH 页面（Ctrl+Shift+R）后侧边栏出现「虾说」。遇到报错先告诉我再处理。
 
 ### ② 手动下载装
-从 https://github.com/bettermen/dsh-course-writer/releases/latest 下载最新的 `dsh-external-dsh-course-writer-*.tgz`，然后：
+从 https://github.com/bettermen/xiashuo/releases/latest 下载最新的 `dsh-external-xiashuo-*.tgz`，然后：
 
 ```bash
 dsh plugin --profile web add <该文件路径>
-dsh plugin list        # 看到 dsh-course-writer 即成功
+dsh plugin list        # 看到 xiashuo 即成功
 ```
 
 ### ③ 源码构建装（进阶）
 需 Node ≥22 与 Git：
 
 ```bash
-git clone https://github.com/bettermen/dsh-course-writer.git && cd dsh-course-writer
+git clone https://github.com/bettermen/xiashuo.git && cd xiashuo
 npm install && npm run build && npm pack
-dsh plugin --profile web add ./dsh-external-dsh-course-writer-0.5.0.tgz
+dsh plugin --profile web add ./dsh-external-xiashuo-0.6.0.tgz
 ```
 
 **装完**：侧边栏出现「虾说」、设置页出现同名卡片即完成；没有就刷新页面/重启 DSH 并在插件列表确认已启用。
@@ -121,7 +121,7 @@ dsh plugin --profile web add ./dsh-external-dsh-course-writer-0.5.0.tgz
 3. 右栏「资料库」录入知识点（含关键词），「知识图谱」查看知识结构
 4. 顶部「导出」→ 选 TXT 或 Word 下载；「分享」→ 生成协作链接
 
-数据目录默认 `~/.dsh/dsh-course-writer/`：
+数据目录默认 `~/.dsh/xiashuo/`：
 
 ```
 lorebook/       资料库（entries）
@@ -193,7 +193,7 @@ projects/      项目（book.json + chapters/ + audit.jsonl + ...）
 | 设置 | 默认 | 说明 |
 | --- | --- | --- |
 | enabled | true | 插件总开关（关闭即注销工具/技能，数据保留） |
-| dataDir | `~/.dsh/dsh-course-writer` | 数据根目录 |
+| dataDir | `~/.dsh/xiashuo` | 数据根目录 |
 | uiHidden | false | 隐藏侧边栏「虾说」入口 |
 
 ---
@@ -202,7 +202,7 @@ projects/      项目（book.json + chapters/ + audit.jsonl + ...）
 
 - **agent 工具**：`course_*`（项目/阶段/写教案/校验/导出…）+ `lorebook_*`（资料库 CRUD）
 - **技能**：`course-writing-workflow`（九阶段编写方法指导）
-- **GUI 数据面**：`/api/course-writer/*`（项目/章节/导出/分享/资料库，fence 头校验）
+- **GUI 数据面**：`/api/xiashuo/*`（项目/章节/导出/分享/资料库，fence 头校验）
 
 ---
 
@@ -235,7 +235,7 @@ npm pack            # 打包为 tgz
 
 ## 🛡 安全模型
 
-- 数据仅存本地 `~/.dsh/dsh-course-writer/`，不联网上传
+- 数据仅存本地 `~/.dsh/xiashuo/`，不联网上传
 - 所有写操作走审计日志
 - GUI 路由带自定义头校验（防 CSRF/dns-rebinding）
 - 分享接口 token 鉴权 + nginx 独立放行，不暴露管理凭据

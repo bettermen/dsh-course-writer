@@ -37,7 +37,7 @@ jobs:
       - name: Create Release & upload tgz
         uses: softprops/action-gh-release@v2
         with:
-          files: dsh-external-dsh-course-writer-*.tgz
+          files: dsh-external-xiashuo-*.tgz
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

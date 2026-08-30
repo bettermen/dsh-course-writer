@@ -1,5 +1,5 @@
 /**
- * dsh-course-writer — 质量工具（P2-G）：去 AI 味 / 文风转换 / 黄金三讲诊断 / 建议执行 / 课时校验。
+ * xiashuo — 质量工具（P2-G）：去 AI 味 / 文风转换 / 黄金三讲诊断 / 建议执行 / 课时校验。
  * LLM 不可用时自动降级（规则层/检测层结果 + degraded 标记）。
  */
 import type { Context } from '@deepseek-ai/cordis'

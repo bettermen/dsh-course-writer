@@ -1,5 +1,5 @@
 /**
- * dsh-course-writer — core 域聚合导出。
+ * xiashuo — core 域聚合导出。
  * 模块间引用统一走本入口（`import { ... } from '../core/index.ts'`），
  * 避免深层相对路径散落。
  */

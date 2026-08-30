@@ -4,7 +4,7 @@ description: 通用课程编写全流程（九阶段门禁式）：选题→学�
 whenToUse: 用户要求开始编写课程、写教案、设定学情、生成大纲、设计教学目标、润色或诊断教案时。 — When the user asks to author a course, write lesson plans, set learner analysis, generate an outline, design objectives, or polish/diagnose lesson plans.
 ---
 
-# 课程编写工作流（dsh-course-writer）
+# 课程编写工作流（xiashuo）
 
 本技能定义课程编写的标准流程。**阶段推进必须走工具，未 commit 不得自称完成。**
 

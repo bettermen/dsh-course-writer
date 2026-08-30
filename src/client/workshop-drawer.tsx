@@ -1,5 +1,5 @@
 /**
- * dsh-course-writer — 工作台抽屉 v4（原生事件驱动版）。
+ * xiashuo — 工作台抽屉 v4（原生事件驱动版）。
  *
  * 背景（实测）：本环境中 createRoot 渲染 React 树**有效**（内容可见），
  * 但 React 合成事件（onClick/onChange）**失效**（REACT-OK 探针从未触发，
@@ -1298,7 +1298,7 @@ export function mountWorkshopDrawer(options: WorkshopOptions): WorkshopHandle {
         return
       }
       // 非 action 点击：仅用于记录（debug）
-      console.debug('[course-writer] click', target.tagName)
+      console.debug('[xiashuo] click', target.tagName)
     })
     el.addEventListener('input', (event) => {
       const target = event.target as HTMLInputElement | HTMLTextAreaElement

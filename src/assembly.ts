@@ -1,5 +1,5 @@
 /**
- * dsh-course-writer — 装配控制器（P2-G 扩展）。
+ * xiashuo — 装配控制器（P2-G 扩展）。
  *
  * 职责：settings 门禁的核心逻辑——enabled 开关与配置变更时的
  * 「注册/注销」幂等切换。与 cordis settings 服务解耦（controller 只接受

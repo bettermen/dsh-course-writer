@@ -1,5 +1,5 @@
 /**
- * dsh-course-writer — 核心类型契约层（模块 1）。
+ * xiashuo — 核心类型契约层（模块 1）。
  *
  * 职责：定义跨模块共享的数据模型与错误约定。**只含类型与常量，无 IO、无 cordis 依赖**。
  * 域模块（lorebook/workflow/stats/...）在此契约之上自行扩展私有类型。

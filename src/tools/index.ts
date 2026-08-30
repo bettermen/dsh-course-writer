@@ -1,5 +1,5 @@
 /**
- * dsh-course-writer — agent 工具聚合注册（P2-G 全量）。
+ * xiashuo — agent 工具聚合注册（P2-G 全量）。
  * 宿主装配时调用；返回聚合 disposer（settings 门禁注销用）。
  */
 import type { Context } from '@deepseek-ai/cordis'

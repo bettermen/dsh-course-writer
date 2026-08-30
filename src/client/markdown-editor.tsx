@@ -1,5 +1,5 @@
 /**
- * dsh-course-writer — Markdown 讲义编辑器（CodeMirror 6）。
+ * xiashuo — Markdown 讲义编辑器（CodeMirror 6）。
  *
  * 取代原来的裸 <textarea>，保留完全相同的受控契约（value / onChange），
  * 以获得：Markdown 语法高亮、列表自动续行、撤销栈、括号引号自动配对、

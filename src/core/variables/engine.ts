@@ -1,5 +1,5 @@
 /**
- * dsh-course-writer — 变量引擎纯函数（P1-C）。
+ * xiashuo — 变量引擎纯函数（P1-C）。
  *
  * 移植夏瑾 worldbook_variables.js 核心能力，全部无 IO：
  *  1. YAML-like 解析（InitVar 模板）；

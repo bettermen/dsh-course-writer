@@ -1,5 +1,5 @@
 /**
- * dsh-course-writer — lorebook 存储层（模块 2）。
+ * xiashuo — lorebook 存储层（模块 2）。
  *
  * 职责：资料库三类文件的「原子写 + schema 迁移 + 自动备份 + 严格错误」。
  * 设计要点（修复夏瑾 storage 层缺陷，见 OPERITFORGE-MIGRATION-PLAN v3 §1）：

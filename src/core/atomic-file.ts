@@ -1,5 +1,5 @@
 /**
- * dsh-course-writer — 原子文件写入工具（P1-B）。
+ * xiashuo — 原子文件写入工具（P1-B）。
  * 供 LoreStore 与 NovelStore 共用：tmp+rename 原子写 + 可选写前备份。
  */
 import { mkdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises'

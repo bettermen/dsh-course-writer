@@ -1,5 +1,5 @@
 /**
- * dsh-course-writer — lorebook agent 工具注册（模块 6）。
+ * xiashuo — lorebook agent 工具注册（模块 6）。
  *
  * 工具集（P0 范围 8 个）：list/get/create/update/delete/toggle/import/export。
  * 契约：execute 返回 `{ ok, value } | { ok: false, error }`（asResult 包装），

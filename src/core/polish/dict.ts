@@ -1,5 +1,5 @@
 /**
- * dsh-course-writer — 内置 AI 味词库（P2-A，随包分发）。
+ * xiashuo — 内置 AI 味词库（P2-A，随包分发）。
  * 5 类 260+ 词，覆盖课程高频 AI 腔表达。项目级可通过配置覆盖扩充。
  */
 import type { AiTasteWord } from './types.ts'

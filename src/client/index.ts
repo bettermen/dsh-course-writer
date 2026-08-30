@@ -1,6 +1,6 @@
 /**
- * @dsh-external/dsh-course-writer — client 半区（P1-I）。
- * 装配：设置卡（settings.plugin.item，读写 dsh-course-writer 命名空间）+
+ * @dsh-external/xiashuo — client 半区（P1-I）。
+ * 装配：设置卡（settings.plugin.item，读写 xiashuo 命名空间）+
  * 侧边栏入口（DOM 注入，自愈模式）+ 工作台抽屉（React 根）。
  * 失败策略：挂载问题只记日志、绝不抛出（web shell boot 安全）。
  */
@@ -28,7 +28,7 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
 export const inject = ['slots', 'settingsScope', 'sessions', 'workspaces']
 
 /** 设置命名空间（与 host 端一致）。 */
-const NS = 'dsh-course-writer'
+const NS = 'xiashuo'
 
 interface SettingsShape {
   enabled: boolean
@@ -45,12 +45,12 @@ export function apply(ctx: ClientContext): void {
       // 同时提供 id 与 key：不同宿主版本把该 slot 声明为 "list"（用 id）或 "keyed"（用 key），
       // 带两者可兼容两种环境，避免 "keyed slot requires options.key" 加载报错。
       // （类型按本机 list 声明走；运行时额外的 key 由 cast 绕过 list-only 类型约束）
-      id: '@dsh-external/dsh-course-writer',
-      key: '@dsh-external/dsh-course-writer',
+      id: '@dsh-external/xiashuo',
+      key: '@dsh-external/xiashuo',
       order: 110,
       label: () => '虾说',
     } as never, () => React.createElement(NovelSettingsCard, { scope })),
-  ), '@dsh-external/dsh-course-writer: settings card')
+  ), '@dsh-external/xiashuo: settings card')
 
   // 侧边栏入口 + 三栏工作台（DOM 级，自愈注入）
   // 摸鱼模式：uiHidden（localStorage）true 时隐藏入口，切换即时生效、不依赖 host settings 可达性
@@ -58,7 +58,7 @@ export function apply(ctx: ClientContext): void {
   let sidebarDisposer: (() => void) | null = null
 
   const ensureWorkshop = (): { toggle: () => void; dispose: () => void } => {
-    if (!workshop) workshop = mountWorkshopLayout({ api: '/api/course-writer', fenceHeader: 'x-dsh-course-writer' })
+    if (!workshop) workshop = mountWorkshopLayout({ api: '/api/xiashuo', fenceHeader: 'x-xiashuo' })
     return workshop
   }
 
@@ -94,7 +94,7 @@ export function apply(ctx: ClientContext): void {
     sidebarDisposer = null
     workshop?.dispose()
     workshop = null
-  }, '@dsh-external/dsh-course-writer: sidebar + drawer')
+  }, '@dsh-external/xiashuo: sidebar + drawer')
 }
 
 export type { SettingsScope }

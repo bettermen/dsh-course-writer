@@ -1,4 +1,4 @@
 /**
- * dsh-course-writer — prompts 域聚合导出。
+ * xiashuo — prompts 域聚合导出。
  */
 export * from './loader.ts'

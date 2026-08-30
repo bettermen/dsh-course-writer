@@ -1,5 +1,5 @@
 /**
- * dsh-course-writer — Word(.docx) 导出生成器。
+ * xiashuo — Word(.docx) 导出生成器。
  * 零依赖：手写 OOXML（document.xml）+ 极简 ZIP 容器（store + deflate）。
  * 产物为标准 .docx，Word / WPS / Google Docs 均可打开，保留标题与章节层级。
  */

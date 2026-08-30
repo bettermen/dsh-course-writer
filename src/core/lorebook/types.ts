@@ -1,5 +1,5 @@
 /**
- * dsh-course-writer — lorebook 域参数/结果类型（模块 3 配套）。
+ * xiashuo — lorebook 域参数/结果类型（模块 3 配套）。
  * 服务层入参采用「可选字段对象」：缺省即用默认值（create）或保持不变（update）。
  */
 import type { InjectPosition, InjectTarget, LoreEntry, LoreGroup } from '../types.ts'

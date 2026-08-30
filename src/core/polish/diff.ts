@@ -1,5 +1,5 @@
 /**
- * dsh-course-writer — 润色差异对比（P3 一键润色模块）。
+ * xiashuo — 润色差异对比（P3 一键润色模块）。
  *
  * 句子级 LCS diff：把原文与润色文按"句末标点 + 换行"切分为 token 序列，
  * 求最长公共子序列后回溯生成 chunk 流（same / del / add），供 GUI 标亮显示

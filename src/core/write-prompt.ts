@@ -1,5 +1,5 @@
 /**
- * dsh-course-writer — 写教案指令组装（P3 修复）。
+ * xiashuo — 写教案指令组装（P3 修复）。
  * 纯函数：上下文包 → 模型写作指令。host 直写与 client 会话驱动共用。
  */
 import type { Book } from './novel/types.ts'

@@ -1,5 +1,5 @@
 /**
- * dsh-course-writer — LLM 客户端封装（P2-G）。
+ * xiashuo — LLM 客户端封装（P2-G）。
  * 辅助模型调用（改写/诊断/摘要）：路由捕获（监听主模型 llm/stream）+ complete。
  * 无路由时抛错，由工具层降级（返回"需要模型"提示）。
  */

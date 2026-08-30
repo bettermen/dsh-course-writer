@@ -1,5 +1,5 @@
 /**
- * dsh-course-writer — 课程项目存储层（P1-B）。
+ * xiashuo — 课程项目存储层（P1-B）。
  *
  * 目录布局（DEVELOPMENT-PLAN §6.1 对齐）：
  *   <baseDir>/<bookId>/

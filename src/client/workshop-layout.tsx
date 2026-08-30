@@ -1,6 +1,6 @@
 /**
- * dsh-course-writer — 三栏式工作台布局（左：阶段导航 / 中：Markdown 编辑+分屏预览 / 右：资料库·知识图谱·预览）。
- * 自包含：复用 /api/course-writer 数据面；打开时创建全屏层，关闭即销毁。
+ * xiashuo — 三栏式工作台布局（左：阶段导航 / 中：Markdown 编辑+分屏预览 / 右：资料库·知识图谱·预览）。
+ * 自包含：复用 /api/xiashuo 数据面；打开时创建全屏层，关闭即销毁。
  */
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { createRoot, type Root } from 'react-dom/client'

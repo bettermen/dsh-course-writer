@@ -1,5 +1,5 @@
 /**
- * dsh-course-writer — client 侧一键写教案驱动（P2-H，P3 修复）。
+ * xiashuo — client 侧一键写教案驱动（P2-H，P3 修复）。
  * 按真实 client runtime 契约适配（dsh-client-runtime 实测）：
  *  - workspaces.list.getSnapshot() → { items: WorkspaceView[], recentWorkspaceId? }
  *  - workspaces.connectWorkspace(id) → Promise<SessionId>

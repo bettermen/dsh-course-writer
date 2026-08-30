@@ -1,5 +1,5 @@
 /**
- * dsh-course-writer — 出题/试卷/知识图谱工具。
+ * xiashuo — 出题/试卷/知识图谱工具。
  * 依赖 LLM 与资料库（lorebook）知识点；模型不可用时降级（知识图谱回退到启发式构建）。
  */
 import type { Context } from '@deepseek-ai/cordis'

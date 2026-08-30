@@ -1,5 +1,5 @@
 /**
- * dsh-course-writer — 知识图谱可视化（客户端，自包含）。
+ * xiashuo — 知识图谱可视化（客户端，自包含）。
  * 注入侧边栏入口「知识图谱」→ 弹层选择项目 → 读取 /projects/<id>/knowledge-graph → SVG 渲染。
  */
 import React, { useEffect, useState } from 'react'
@@ -10,7 +10,7 @@ interface GraphEdge { source: string; target: string; label?: string }
 interface Graph { nodes: GraphNode[]; edges: GraphEdge[] }
 interface Project { id: string; title: string }
 
-const ENTRY_SELECTOR = '[data-dsh-course-writer-graph-entry]'
+const ENTRY_SELECTOR = '[data-xiashuo-graph-entry]'
 
 function sidebarRoot(): HTMLElement | undefined {
   const column = document.querySelector<HTMLElement>('[data-pane="sidebar"], [class*="sidebarCol"]')

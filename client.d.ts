@@ -1,5 +1,5 @@
 /**
- * @dsh-external/dsh-course-writer — client 半区类型声明（手写维护）。
+ * @dsh-external/xiashuo — client 半区类型声明（手写维护）。
  * client bundle 由 tsdown 打包为 CJS + ModuleLoader.load banner（lib/client.js），
  * 类型面极小（一个 apply），此文件随包发布供 `exports["./client"]` 引用。
  */

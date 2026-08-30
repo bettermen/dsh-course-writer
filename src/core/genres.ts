@@ -1,5 +1,5 @@
 /**
- * dsh-course-writer — 课程题材（genre）统一清单（P3 题材扩充）。
+ * xiashuo — 课程题材（genre）统一清单（P3 题材扩充）。
  *
  * 课程全类型题材枚举：id 为持久化值（英文小写），label 为中文显示名，
  * group 为客户端下拉分组。host 与 client 共用（纯常量 + 纯函数，零依赖）。

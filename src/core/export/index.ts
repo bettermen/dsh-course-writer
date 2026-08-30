@@ -1,4 +1,4 @@
 /**
- * dsh-course-writer — export 域聚合导出。
+ * xiashuo — export 域聚合导出。
  */
 export * from './engine.ts'

@@ -1,5 +1,5 @@
 /**
- * dsh-course-writer — polish 域聚合导出。
+ * xiashuo — polish 域聚合导出。
  */
 export * from './types.ts'
 export * from './dict.ts'

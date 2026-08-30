@@ -1,5 +1,5 @@
 /**
- * dsh-course-writer — 一致性检测与巡检（P2-D 纯函数部分）。
+ * xiashuo — 一致性检测与巡检（P2-D 纯函数部分）。
  *  - detectLedgerConflicts：同实体字段多次取值（覆盖史）
  *  - detectTimelineAnomalies：书内时间倒挂/缺失
  *  - suggestSediment：账本首次出现实体 → 资料库建议条目

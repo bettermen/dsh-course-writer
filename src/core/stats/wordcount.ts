@@ -1,5 +1,5 @@
 /**
- * dsh-course-writer — 课时字数统计与达标校验（模块 5）。
+ * xiashuo — 课时字数统计与达标校验（模块 5）。
  *
  * 职责：对课时讲义做纯函数统计（无 IO、无 cordis 依赖），供：
  *  - course_write_chapter / course_commit 提交时自动落盘（P1 接线）；

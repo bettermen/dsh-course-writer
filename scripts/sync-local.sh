@@ -14,7 +14,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 DESKTOP="${HOME}/.dsh/profiles/desktop"
-PLUGIN_DIR="${DESKTOP}/node_modules/@dsh-external/dsh-course-writer"
+PLUGIN_DIR="${DESKTOP}/node_modules/@dsh-external/xiashuo"
 cd "$ROOT"
 
 # 版本号从 package.json 自动读取，避免升级后文件名写死导致 cp 失败
@@ -29,7 +29,7 @@ npm run build
 
 echo "→ [2/4] 打包…"
 # 清理历史版本 tgz，避免 npm pack 后残留多版本文件
-rm -f dsh-external-dsh-course-writer-*.tgz
+rm -f dsh-external-xiashuo-*.tgz
 npm pack > /dev/null
 
 if [ ! -d "$DESKTOP" ]; then
@@ -38,7 +38,7 @@ if [ ! -d "$DESKTOP" ]; then
 fi
 
 echo "→ [3/4] 安装到本机 profile…"
-rm -f "${DESKTOP}"/dsh-external-dsh-course-writer-*.tgz "${DESKTOP}"/dsh-course-writer-*.tgz
+rm -f "${DESKTOP}"/dsh-external-xiashuo-*.tgz "${DESKTOP}"/xiashuo-*.tgz
 cp "$TGZ_NAME" "${DESKTOP}/${TGZ_NAME}"
 rm -rf "$PLUGIN_DIR"
 mkdir -p "$PLUGIN_DIR"

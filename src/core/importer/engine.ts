@@ -1,5 +1,5 @@
 /**
- * dsh-course-writer — 课程导入编排（P3 导入模块）。
+ * xiashuo — 课程导入编排（P3 导入模块）。
  *
  * BookImporter：解析结果 → 建书 → 逐章写入（走 NovelService.saveChapter 完整管线：
  * 字数统计 / 账本 / 变量 / 审计）。IO 通过 ImportDeps 注入，可单测（fake 或真实 store）。

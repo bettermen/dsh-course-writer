@@ -1,5 +1,5 @@
 /**
- * dsh-course-writer — 设置卡（P1-I）。
+ * xiashuo — 设置卡（P1-I）。
  * 读写 settingsScope（host 设置：启用/数据目录）+ 浏览器端「隐藏侧边栏入口」
  * （localStorage，见 ui-hidden.ts）——该开关不依赖 host settings 是否暴露。
  */
@@ -103,7 +103,7 @@ export function NovelSettingsCard({ scope }: NovelSettingsCardProps): React.Reac
       type: 'text',
       className: 'cw-input',
       value: dataDir,
-      placeholder: '默认 ~/.dsh/dsh-course-writer',
+      placeholder: '默认 ~/.dsh/xiashuo',
       onChange: (e: React.ChangeEvent<HTMLInputElement>) => setDataDir(e.target.value),
     }),
   )

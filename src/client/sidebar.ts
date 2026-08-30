@@ -1,13 +1,13 @@
 import { t } from './i18n.ts'
 import { injectAppleStyles } from './apple-ui.ts'
 /**
- * dsh-course-writer — 侧边栏入口（P1-I）。
+ * xiashuo — 侧边栏入口（P1-I）。
  * DOM 级注入 + MutationObserver 自愈（task-board sidebar-entry 模式）：
  * 侧边栏无第三方 slot，入口行插在 New Session 按钮之后。
  */
 
 /** 稳定选择器标识本插件注入的入口行。 */
-export const ENTRY_SELECTOR = '[data-dsh-course-writer-entry]'
+export const ENTRY_SELECTOR = '[data-xiashuo-entry]'
 
 const ICON = `<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 3.5h12M2 8h12M2 12.5h7"/><circle cx="12" cy="12.5" r="1.8"/></svg>`
 
@@ -30,7 +30,7 @@ function newSessionButton(root: HTMLElement): HTMLButtonElement | undefined {
 function createEntry(onClick: () => void): HTMLButtonElement {
   const entry = document.createElement('button')
   entry.type = 'button'
-  entry.dataset.dshCourseWriterEntry = ''
+  entry.dataset.xiashuoEntry = ''
   entry.title = t('appName')
   entry.setAttribute('aria-label', t('appName'))
   // Apple 侧边栏入口样式（hover 高亮 + 圆角），样式表由 injectAppleStyles 幂等注入

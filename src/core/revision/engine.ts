@@ -1,5 +1,5 @@
 /**
- * dsh-course-writer — 修订系统（P2-E）。
+ * xiashuo — 修订系统（P2-E）。
  * 修订模式：proofread（错别字/病句轻改）/ rhythm（节奏重写）/ style（文风统一）。
  * 纯逻辑：修订类型定义 + diff 统计（字符级差异估算）+ 版本管理约定。
  * 实际改写由 LLM 按内置提示词执行（P2-G 工具接线）。

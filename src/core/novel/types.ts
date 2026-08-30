@@ -1,5 +1,5 @@
 /**
- * dsh-course-writer — 课程项目域类型（P1-B）。
+ * xiashuo — 课程项目域类型（P1-B）。
  */
 import type { PhaseId, PhaseRecord } from '../workflow/types.ts'
 

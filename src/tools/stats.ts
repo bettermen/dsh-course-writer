@@ -1,5 +1,5 @@
 /**
- * dsh-course-writer — 课时字数统计工具（模块 6）。
+ * xiashuo — 课时字数统计工具（模块 6）。
  * course_wordcount：对给定讲义即时统计（P0 无项目模块，直接吃文本；
  * P1 项目模块落地后扩展 chapterNo/项目读取能力）。
  */

@@ -1,5 +1,5 @@
 /**
- * dsh-course-writer — 向导与助手工具（P1-I）。
+ * xiashuo — 向导与助手工具（P1-I）。
  * course_wizard：五步创作向导（状态持久化到项目目录 wizard.json）；
  * course_guide：工坊助手意图解析入口（返回结构化动作，由用户/模型执行）。
  */

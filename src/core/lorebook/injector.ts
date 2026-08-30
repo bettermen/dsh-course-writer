@@ -1,5 +1,5 @@
 /**
- * dsh-course-writer — 注入组装器（P1-D）。
+ * xiashuo — 注入组装器（P1-D）。
  *
  * 职责：把资料库条目组装为 InjectionPlan（方案 §3.1-M1 / v3 §3.3）：
  *  1. 过滤：disabled 条目、禁用分组内条目、book_id 不匹配条目；

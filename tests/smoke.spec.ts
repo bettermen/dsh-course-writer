@@ -3,7 +3,7 @@ import { Config, name } from '../src/index.ts'
 
 describe('plugin skeleton', () => {
   it('exports a stable plugin name', () => {
-    expect(name).toBe('@dsh-external/dsh-course-writer')
+    expect(name).toBe('@dsh-external/xiashuo')
   })
 
   it('Config schema resolves the enabled default', () => {

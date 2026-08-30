@@ -1,5 +1,5 @@
 /**
- * dsh-course-writer — lorebook 域聚合导出。
+ * xiashuo — lorebook 域聚合导出。
  */
 export * from './store.ts'
 export * from './service.ts'

@@ -1,6 +1,6 @@
 /**
- * dsh-course-writer — host HTTP 路由（P1-I，GUI 数据面）。
- * 单 prefix 路由 /api/course-writer（WebRoute.path 无尾斜杠），handler 内按路径分派：
+ * xiashuo — host HTTP 路由（P1-I，GUI 数据面）。
+ * 单 prefix 路由 /api/xiashuo（WebRoute.path 无尾斜杠），handler 内按路径分派：
  *   GET  /projects                项目列表
  *   POST /projects                创建项目（fence 头校验）
  *   GET  /projects/<id>           项目详情 + 审计尾部
@@ -20,8 +20,8 @@ import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { readFile } from 'node:fs/promises'
 
-const PREFIX = '/api/course-writer'
-const FENCE_HEADER = 'x-dsh-course-writer'
+const PREFIX = '/api/xiashuo'
+const FENCE_HEADER = 'x-xiashuo'
 
 /** 分享查看/协作页（自包含：内联 CSS+JS，fetch /share/<token>/data 渲染；write 模式可编辑保存）。 */
 function sharePageHtml(title: string, mode: 'read' | 'write', token: string): string {
@@ -579,7 +579,7 @@ export function registerNovelRoutes(ctx: Context, assembly: NovelAssembly): void
         }
         fail(res, 404, 'ENTRY_NOT_FOUND', 'unknown resource')
       },
-    }), 'dsh-course-writer: routes')
+    }), 'xiashuo: routes')
 
     // 分享协作公开前缀（免 fence 头 / 免 Basic Auth，token 鉴权）。
     wctx.effect(() => wctx.webServer.register({
@@ -652,6 +652,6 @@ export function registerNovelRoutes(ctx: Context, assembly: NovelAssembly): void
         }
         fail(res, 404, 'ENTRY_NOT_FOUND', 'unknown resource')
       },
-    }), 'dsh-course-writer: share routes')
+    }), 'xiashuo: share routes')
   })
 }

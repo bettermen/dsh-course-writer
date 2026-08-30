@@ -1,5 +1,5 @@
 /**
- * dsh-course-writer — AI 味检测类型（P2-A）。
+ * xiashuo — AI 味检测类型（P2-A）。
  */
 
 /** AI 味词类别（5 类）。 */

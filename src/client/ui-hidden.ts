@@ -1,5 +1,5 @@
 /**
- * dsh-course-writer — 侧边栏入口隐藏开关（浏览器端本地存储）。
+ * xiashuo — 侧边栏入口隐藏开关（浏览器端本地存储）。
  *
  * 与 host settings 解耦：无论 host 的 settings 命名空间是否对该 client 暴露
  * （部分宿主/连接模式下 `settingsScope` 会标记为 `unavailable`），
@@ -8,9 +8,9 @@
  */
 
 /** localStorage 键。 */
-export const UI_HIDDEN_KEY = 'dsh-course-writer:uiHidden'
+export const UI_HIDDEN_KEY = 'xiashuo:uiHidden'
 /** 设置卡切换时派发，通知侧边栏入口即时增删（不依赖 host settings 可达性）。 */
-export const UI_HIDDEN_EVENT = 'dsh-course-writer:ui-hidden-change'
+export const UI_HIDDEN_EVENT = 'xiashuo:ui-hidden-change'
 
 /** 读取当前是否隐藏侧边栏入口。 */
 export function readUiHidden(): boolean {

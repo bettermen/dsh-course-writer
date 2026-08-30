@@ -1,5 +1,5 @@
 /**
- * dsh-course-writer — 成稿导出（P2-E）。
+ * xiashuo — 成稿导出（P2-E）。
  * 纯函数：txt / markdown / 平台排版（标题+讲义+作者的话）。
  */
 import type { Chapter } from '../novel/types.ts'

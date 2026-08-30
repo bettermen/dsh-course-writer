@@ -1,5 +1,5 @@
 /**
- * dsh-course-writer — 变量存储与课时同步（P1-C）。
+ * xiashuo — 变量存储与课时同步（P1-C）。
  * variables.json 位于项目目录（VersionedFile 外壳）；课时提交时调用
  * applyChapterPatch 提取 <JSONPatch> 增量更新课程级/局部变量。
  */

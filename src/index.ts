@@ -1,5 +1,5 @@
 /**
- * @dsh-external/dsh-course-writer — host half entry (装配层).
+ * @dsh-external/xiashuo — host half entry (装配层).
  *
  * 职责边界（遵循 OPERITFORGE-MIGRATION-PLAN.md v3 §2 架构）：
  *  - 本文件只做「装配」：读配置、组合子模块、注册工具/路由/技能；
@@ -18,7 +18,7 @@ import type {} from '@deepseek-ai/dsh-tools'
 import { settingsNamespace } from '@deepseek-ai/dsh-settings'
 import { join } from 'node:path'
 import { homedir } from 'node:os'
-import { mkdirSync } from 'node:fs'
+import { mkdirSync, existsSync, cpSync } from 'node:fs'
 import z from 'schemastery'
 import { LoreService, LoreStore } from './core/lorebook/index.ts'
 import { NovelService, NovelStore } from './core/novel/index.ts'
@@ -31,7 +31,7 @@ import { registerNovelRoutes } from './routes.ts'
 import { syncAgentPreset } from './presets.ts'
 
 /** 稳定插件名（与 cordis.patch.yml 的 name 一致）。 */
-export const name = '@dsh-external/dsh-course-writer'
+export const name = '@dsh-external/xiashuo'
 
 /** 宿主服务注入：工具注册需要 tools 服务；settings 门禁需要 settings 服务。 */
 export const inject = ['tools', 'settings']
@@ -39,7 +39,7 @@ export const inject = ['tools', 'settings']
 export interface Config {
   /** 插件总开关（consent 门禁；默认开，GUI 可停用）。 */
   enabled: boolean
-  /** 数据根目录（默认 ~/.dsh/dsh-course-writer）。 */
+  /** 数据根目录（默认 ~/.dsh/xiashuo）。 */
   dataDir: string
   /** 隐藏侧边栏「虾说」入口（摸鱼模式；入口隐藏后需到设置里重新打开）。 */
   uiHidden: boolean
@@ -54,7 +54,15 @@ export const Config = z.object({
 function resolveDataDir(config: Config): string {
   if (config.dataDir.trim()) return config.dataDir.trim()
   const dshHome = process.env.DSH_HOME || join(homedir(), '.dsh')
-  return join(dshHome, 'dsh-course-writer')
+  const dir = join(dshHome, 'xiashuo')
+  const legacy = join(dshHome, 'dsh-course-writer')
+  // 品牌更名（xiashuo）：旧数据目录存在且新目录尚不存在时自动复制迁移（保留旧目录，安全）。
+  try {
+    if (!existsSync(dir) && existsSync(legacy)) cpSync(legacy, dir, { recursive: true })
+  } catch {
+    // 迁移失败不阻断启动，fallback 使用新目录
+  }
+  return dir
 }
 
 export function apply(ctx: Context, config: Config): void {
@@ -91,7 +99,7 @@ export function apply(ctx: Context, config: Config): void {
 
   // settings 门禁：注册命名空间（config 为 base 层），随 scope 变化热生效。
   ctx.inject(['settings'], (sctx) => {
-    const scope = sctx.settings.register(settingsNamespace('dsh-course-writer'), Config, { base: config })
+    const scope = sctx.settings.register(settingsNamespace('xiashuo'), Config, { base: config })
     const sync = (): void => {
       const resolved = scope.get() ?? config
       const enabled = resolved.enabled !== false

@@ -1,5 +1,5 @@
 /**
- * dsh-course-writer — 核心纯函数工具（模块 1 配套）。
+ * xiashuo — 核心纯函数工具（模块 1 配套）。
  *
  * 职责：无状态、无 IO 的通用工具；所有函数可独立单测。
  * 命名/语义对齐夏瑾工坊原实现（splitKeywords / generateId），便于移植对照。

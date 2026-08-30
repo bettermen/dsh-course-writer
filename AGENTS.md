@@ -1,4 +1,4 @@
-# AGENTS.md — dsh-course-writer 开发指引
+# AGENTS.md — xiashuo 开发指引
 
 本文件为在本仓库工作的 AI/人类开发者提供约定。
 

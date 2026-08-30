@@ -1,5 +1,5 @@
 /**
- * dsh-course-writer — Apple 风格右键菜单（Context Menu）。
+ * xiashuo — Apple 风格右键菜单（Context Menu）。
  *
  * 行为对齐 macOS：毛玻璃面板、点击外部/Esc/滚动/窗口变化即关闭、
  * 贴边自动翻转（不超出视口）、危险项红色、支持快捷键提示与分隔线。

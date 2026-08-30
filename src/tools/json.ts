@@ -1,5 +1,5 @@
 /**
- * dsh-course-writer — 工具输出辅助（模块 6）。
+ * xiashuo — 工具输出辅助（模块 6）。
  * 统一 JSON 输出契约：作者面 ValueSchemaSpec DSL（`{ type: 'json' }` = 自由 JSON 节点）。
  * 注意：返回类型必须让 TS 推断为字面量（defineTool 依赖泛型推断 value 类型），
  * 不能标注宽类型（如 ToolOutputDefinition），否则推断退化为 never。

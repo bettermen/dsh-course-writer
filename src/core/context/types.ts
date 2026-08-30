@@ -1,5 +1,5 @@
 /**
- * dsh-course-writer — 上下文包类型（P1-E）。
+ * xiashuo — 上下文包类型（P1-E）。
  * 写教案时发给模型的受控上下文（方案 §3.3 三层记忆）。
  */
 import type { InjectionPlan } from '../types.ts'

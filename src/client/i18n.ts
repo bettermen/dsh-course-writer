@@ -1,5 +1,5 @@
 /**
- * dsh-course-writer — 前端 UI 国际化（中/英）。
+ * xiashuo — 前端 UI 国际化（中/英）。
  * 语言检测：浏览器 navigator.language 以 zh 开头 → 中文，否则英文；默认中文。
  * 无外部 i18n 依赖，零运行时开销（编译期常量字典）。
  */

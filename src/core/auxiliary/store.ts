@@ -1,5 +1,5 @@
 /**
- * dsh-course-writer — 铺垫 / 术语 / 灵感 存储（P2-F）。
+ * xiashuo — 铺垫 / 术语 / 灵感 存储（P2-F）。
  * 三个独立 JSON（项目目录），VersionedFile 外壳 + 原子写。
  */
 

@@ -1,4 +1,4 @@
 /**
- * dsh-course-writer — llm 域聚合导出。
+ * xiashuo — llm 域聚合导出。
  */
 export * from './client.ts'

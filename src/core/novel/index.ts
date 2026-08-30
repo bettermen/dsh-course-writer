@@ -1,5 +1,5 @@
 /**
- * dsh-course-writer — novel 域聚合导出。
+ * xiashuo — novel 域聚合导出。
  */
 export * from './types.ts'
 export * from './store.ts'

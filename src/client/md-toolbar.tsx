@@ -1,5 +1,5 @@
 /**
- * dsh-course-writer — Markdown 编辑器工具栏（Apple 观感）。
+ * xiashuo — Markdown 编辑器工具栏（Apple 观感）。
  *
  * 分五组，覆盖讲义编写最常用的手动排版动作：
  *   历史：撤销 / 重做

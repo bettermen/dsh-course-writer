@@ -1,5 +1,5 @@
 /**
- * dsh-course-writer — 本地课程文件导入解析器（P3 导入模块）。
+ * xiashuo — 本地课程文件导入解析器（P3 导入模块）。
  *
  * 纯函数：txt/md 文本 → 结构化课程（课程名 / 题材 / 课时数组）。零 IO、零 cordis
  * 依赖，可全量单测。配套引擎见 engine.ts（BookImporter 负责建书 + 逐章写入）。

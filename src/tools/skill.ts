@@ -1,5 +1,5 @@
 /**
- * dsh-course-writer — 技能注册 + 提示词库工具（P1-G）。
+ * xiashuo — 技能注册 + 提示词库工具（P1-G）。
  * 技能 course-writing-workflow（assets/skills/）随包分发，host 启动时注册；
  * course_prompts 工具提供提示词库浏览与渲染。
  */
@@ -43,7 +43,7 @@ export function registerWorkflowSkill(ctx: Context): (() => void) | null {
       description: data.description?.trim() || '网络课程创作全流程（九阶段门禁式创作）。',
       ...(data.whenToUse?.trim() ? { whenToUse: data.whenToUse.trim() } : {}),
       content: body,
-      source: 'dsh-course-writer',
+      source: 'xiashuo',
       metadata: { version: '0.1.0', defaultEnabled: true },
       resourceBase: { kind: 'directory', path: SKILL_DIR },
     })

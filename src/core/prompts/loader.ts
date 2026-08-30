@@ -1,5 +1,5 @@
 /**
- * dsh-course-writer — 内置提示词库加载器（P1-G）。
+ * xiashuo — 内置提示词库加载器（P1-G）。
  *
  * assets/prompts/*.md：YAML frontmatter（id/category/name/description/variables）
  * + 模板讲义（{{var}} 占位符）。读取/解析/渲染全部为纯函数（文件读取注入）。

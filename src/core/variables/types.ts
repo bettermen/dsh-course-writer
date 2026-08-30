@@ -1,5 +1,5 @@
 /**
- * dsh-course-writer — 变量引擎类型（P1-C）。
+ * xiashuo — 变量引擎类型（P1-C）。
  *
  * 移植夏瑾 worldbook_variables.js 的数据模型并做 DSH 场景适配：
  *  - character_variables → 书级变量（键 = bookId，跨会话持久）；

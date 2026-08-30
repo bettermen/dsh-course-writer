@@ -321,6 +321,19 @@ export function registerNovelRoutes(ctx: Context, assembly: NovelAssembly): void
           }
           return
         }
+        // GET /projects/<id>/detail：完整项目详情（工作台打开项目用，含阶段状态/统计/审计尾）
+        if (req.method === 'GET' && segments.length === 3 && segments[0] === 'projects' && segments[2] === 'detail' && projectId) {
+          const svc = novelOf(res)
+          if (!svc) return
+          try {
+            const book = await svc.novel.load(projectId)
+            const audit = await svc.novel.audit(projectId)
+            writeJson(res, 200, { ok: true, value: { book, auditTail: audit.slice(-20) } })
+          } catch (error) {
+            failDomain(res, error, 'IO_FAILURE')
+          }
+          return
+        }
         // PATCH /projects/<id>：编辑项目元信息（title/description/status/kind/genre）
         if (req.method === 'PATCH' && segments.length === 2 && segments[0] === 'projects' && projectId) {
           if (!trusted(req)) return fail(res, 403, 'INVALID_STATE', 'forbidden')

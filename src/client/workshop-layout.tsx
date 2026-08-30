@@ -218,7 +218,7 @@ export function WorkshopLayout({ api: base, fenceHeader, initialProjectId, onBac
     setSelected(id)
     setNotice('')
     setDirty(false)
-    const [bd, le] = await Promise.all([api(`/projects/${id}`), api('/lorebook/entries')])
+    const [bd, le] = await Promise.all([api(`/projects/${id}/detail`), api('/lorebook/entries')])
     const bookDetail = (bd?.value ?? bd) as BookDetail
     setBook(bookDetail ?? null)
     setLoreEntries(Array.isArray(le) ? (le as LoreEntryView[]) : ((le?.value ?? []) as LoreEntryView[]))
@@ -231,7 +231,7 @@ export function WorkshopLayout({ api: base, fenceHeader, initialProjectId, onBac
   const refreshBook = async (): Promise<void> => {
     if (!selected) return
     try {
-      const bd = await api(`/projects/${selected}`)
+      const bd = await api(`/projects/${selected}/detail`)
       setBook((bd?.value ?? bd) as BookDetail)
     } catch {
       /* 静默失败：详情刷新失败不影响流程编辑器继续可用 */

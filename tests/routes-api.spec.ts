@@ -251,6 +251,23 @@ describe('routes — /projects 增删改查', () => {
     expect(active).toHaveLength(3)
   })
 
+  it('GET /projects/<id> 返回 summary；/detail 返回完整详情（工作台用）', async () => {
+    const api = await mount()
+    const id = await newProject(api, '深度学习', 'course')
+    // 首页编辑弹窗用：summary（无 book 字段）
+    const summary = await api.value('GET', `/projects/${id}`)
+    expect(summary).toMatchObject({ id, title: '深度学习', kind: 'course' })
+    expect(summary.book).toBeUndefined()
+    // 工作台打开项目用：完整详情（含 book.phases 状态 + stats + 审计尾）
+    const detail = await api.value('GET', `/projects/${id}/detail`)
+    expect(detail.book.id).toBe(id)
+    expect(detail.book.title).toBe('深度学习')
+    expect(detail.book.phases).toBeDefined()
+    expect(detail.book.phases.topic).toMatchObject({ state: 'locked' })
+    expect(detail.book.stats).toMatchObject({ totalWords: 0, chapterCount: 0 })
+    expect(Array.isArray(detail.auditTail)).toBe(true)
+  })
+
   it('PATCH /projects/<id> 改标题/简介/状态', async () => {
     const api = await mount()
     const id = await newProject(api, '初稿')

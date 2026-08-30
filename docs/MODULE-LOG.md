@@ -989,3 +989,26 @@
 - [ ] `course_guide`（工坊助手意图解析）尚未把「加阶段/删阶段/改状态」纳入意图规则（`core/guide/engine.ts` 的 `parseIntent`），自然语言仍无法自动路由到 `course_workflow`/`course_project_update` —— 依赖模型自行选择工具，可作为后续 P 项补意图
 - [ ] `course_workflow` 的 `update` 动作补 `artifacts` 数组编辑参数
 - [ ] 对话实测「帮我加一个阶段」需重启 DSH 客户端后验证（工具注册在装配期生效）
+
+## 模块 24：发布收尾（P7 —— 版本 0.8.0 + README 重构 + i18n 补全 + 打 tag）
+
+**日期**：2026-08-30
+
+**范围**：
+1. **版本号 bump 0.7.0 → 0.8.0**：`package.json`（含 `description` 从「通用课程编写」更新为「创作者 AI 工作台：项目管理 + 多类型 + 可编辑工作流」）与 `package-lock.json` 两处 version 同步。
+2. **`README.md` / `README.en.md`（重写，zh/en 对齐）**：产品定位从「AI 教材写作工作台」升级为「创作者 AI 辅助工作台」，新增「首页项目管理」「多类型 + 可编辑工作流」两大章节，重构「功能特性 / 使用场景 / 快速开始 / 功能使用指南 / DSH 交互」；修正版本引用（v0.5.0、0.6.0 → 0.8.0），补充「改类型会重置工作流」FAQ 与 `templates/` 数据目录说明。
+3. **i18n 补全**：新增 `newPhaseName`（zh「新阶段」/ en「New phase」）键，替换 `workflow-editor.tsx` 里最后一处硬编码中文（`addPhase` 默认名）。经 grep 扫描 `home.tsx` / `workflow-editor.tsx`，其余中文均为 emoji/符号（语言无关），无遗漏；`en` 为 `Record<keyof typeof zh>`，字典键对齐由类型系统强制。
+
+**验收证据**：
+- `npm run typecheck` 0 错误（host + client，版本已 0.8.0）
+- `npm run build` 成功（lib/client.js 1.35 MB）
+- 同步本机 DSH：`dsh-external-xiashuo-0.8.0.tgz` 解压安装到 `~/.dsh/profiles/desktop/.../`（client.js 1,352,117 字节）
+- git tag `v0.8.0` 打于发布提交
+
+**Code Review 结论（通过 ✅）**：
+1. ✅ README zh/en 同步更新，结构与措辞一一对应，无单边遗漏
+2. ✅ 版本号三处一致（package.json / package-lock.json / README 引用），tgz 文件名随 version 自动生成
+3. ✅ i18n 键对齐由 `en: Record<keyof typeof zh, string>` 类型强制，`newPhaseName` 补齐最后一处硬编码
+
+**遗留事项**：
+- [ ] GitHub Release 附件（`dsh-external-xiashuo-0.8.0.tgz`）需手动上传或由 CI 生成（GitHub Actions 已有打包流程，见 `README` 安装说明引用 `releases/latest`）

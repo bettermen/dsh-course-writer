@@ -1,7 +1,7 @@
 {
   "name": "@dsh-external/xiashuo",
-  "version": "0.7.0",
-  "description": "虾说 — DSH 通用课程编写插件：九阶段门禁式编写流程 + 出题/试卷生成 + 知识图谱可视化 + 课程资料库注入 + 本地资料导入 + AI 一键润色 + 去AI味 + 教案诊断，开箱即用。",
+  "version": "0.8.0",
+  "description": "虾说 — DSH 创作者 AI 工作台插件：首页项目管理 + 课程/公文/小说/论文/自定义多类型 + 可编辑工作流 + 九阶段门禁式流程 + 知识图谱 + 资料库注入 + 本地导入 + AI 润色 + 教案诊断，开箱即用。",
   "type": "module",
   "main": "./lib/index.js",
   "types": "./lib/types/index.d.ts",

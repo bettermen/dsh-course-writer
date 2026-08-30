@@ -1,11 +1,11 @@
 <p align="center">
-  <img src="./assets/brand/banner.svg" alt="虾说 — AI Course-Authoring Workspace" width="100%">
+  <img src="./assets/brand/banner.svg" alt="虾说 — AI Creator Workspace" width="100%">
 </p>
 
 # 虾说 (xiashuo)
 
-An **AI course-authoring workspace plugin** for [DeepSeek Harness](https://deepseek-harness.github.io/deepseek-harness/guide/quickstart) (DSH):
-**three-pane workspace + nine-phase gated workflow + course/chapter/lorebook management + TXT/Word export + share & collaborate**.
+An **AI creator workspace plugin** for [DeepSeek Harness](https://deepseek-harness.github.io/deepseek-harness/guide/quickstart) (DSH):
+**project-managed home page + course/official/novel/thesis & custom kinds + editable workflow + three-pane workspace + gated pipeline + TXT/Word export + share & collaborate**.
 
 - [中文](./README.md) | English
 
@@ -13,27 +13,38 @@ An **AI course-authoring workspace plugin** for [DeepSeek Harness](https://deeps
   <img src="./assets/brand/logo.png" alt="虾说 Logo" width="120">
 </p>
 
-Let DSH work with you like a professional curriculum author: from topic selection, learner analysis and learning objectives to lesson plans, exercises and assessment — every step is methodical, gated, verifiable and exportable, with a lorebook and knowledge graph that solidify the knowledge structure.
+Let DSH work with you like a professional creative partner — manage all your projects through AI conversation. The home page centralizes every project; each kind (course, official document, novel, thesis, or your own custom kind) ships with a workflow you can freely add/remove/reorder phases in. From topic to finished draft, every step is methodical, gated, verifiable and exportable, with a lorebook and knowledge graph that solidify the knowledge structure.
 
 ---
 
 ## ✨ Features
 
-### Three-pane workspace
-- **Left pane**: chapter list (**drag to reorder** + hover-to-delete + context menu) + nine-phase gated navigation (progress x/9, phase lock / in-progress / approved states)
-- **Center pane**: Markdown editor + split preview + chapter title editing + manual save / auto-save (2s after typing stops)
-- **Right pane**: lorebook (knowledge-point management) / knowledge graph (visualized knowledge structure)
+### 🏠 Home page — project management
+- **Project list**: card / list dual views showing kind badge, status, progress bar, lesson count, word count and last-updated
+- **Filter & sort**: by kind / status (incl. "active") / keyword search; sort by updated / created / title / words / progress
+- **Create / edit / delete / duplicate / archive**: one-click via card context menu; delete can "keep drafts" or "delete drafts too"
+- **Empty-state guidance**: one-click sample project to get started fast
 
-### Course management
-- **New course**: 23 course-type dropdown (general · subject · vocational · certification · hobbies)
-- **Rename / delete**: one-click, with delete confirmation
+### 🗂 Multiple kinds + editable workflow
+- **Four built-in kinds**: course (9 phases), official document (7), novel (9), thesis (8) — each with its own default workflow and genre set
+- **Custom kinds**: create your own (name + icon + genre list + initial workflow)
+- **Free workflow editing** (workspace left pane "Workflow"): **drag to reorder / add / rename** phases, edit each phase's **gate / required artifacts / AI prompt / review rubric / skippable**, **reset to default**, **save as template**, browse & apply the template library
+
+### Three-pane workspace
+- **Left pane**: chapters / phases / workflow three views — chapter list (**drag reorder** + hover-delete + context menu), gated phase navigation (progress, locked / in-progress / approved), workflow editor
+- **Center pane**: Markdown editor + split preview + chapter title editing + manual save / auto-save (2s after typing stops)
+- **Right pane**: lorebook (knowledge-point management) / knowledge graph (visualized structure)
+
+### Project management
+- **New project**: kind cards (course/official/novel/thesis/custom) + genre cascade dropdown + summary + workflow-template picker
+- **Rename / delete / duplicate / archive**: one-click, with delete confirmation
 
 ### Lorebook (knowledge points)
 - Knowledge-point **create / edit / enable-disable / delete / preview** (modal form: name, content, keywords)
-- Comma-separated keywords, isolated per course
+- Comma-separated keywords, isolated per project
 
 ### Knowledge graph
-- Visualizes course knowledge points and their relationships
+- Visualizes project knowledge points and their relationships
 - Labels spread radially around nodes (no overlap); long labels truncated with hover-to-view
 
 ### Export
@@ -44,8 +55,7 @@ Let DSH work with you like a professional curriculum author: from topic selectio
 - Generate **read-only / editable** share links — others can open without logging in
 - Editable collaboration has **version history** and **conflict detection** (prompt to overwrite or load latest)
 
-### Nine-phase gated workflow
-`topic → learner analysis → learning objectives → outline → units → lesson plans → exercises → assessment`
+### Gated pipeline (one per kind)
 - **Phase gating**: cannot advance until the previous phase is approved
 - **Artifact versioning**: every submission is archived and revertible
 - **Audit log**: every operation is written to audit.jsonl
@@ -58,13 +68,13 @@ Let DSH work with you like a professional curriculum author: from topic selectio
   <img src="./assets/screenshots/shot-gui.png" alt="虾说 three-pane workspace" width="820">
 </p>
 
-### 🎭 Course-authoring mode preset (agent preset)
-The plugin ships a **「虾说」agent preset**, selectable in DSH's new-session mode picker — picking it enters "course-authoring mode" instantly.
+### 🎭 Creator mode preset (agent preset)
+The plugin ships a **「虾说」agent preset**, selectable in DSH's new-session mode picker — picking it enters "creator workspace mode" instantly.
 
 **Three-channel coordination that constrains the model**:
-1. **Mode anchoring (preset)** — anchors the "curriculum author" persona;
-2. **Soft guidance (skill)** — the `course-writing-workflow` skill auto-registers on enabling and loads the full methodology;
-3. **Hard rails (tools)** — host-registered `course_*` / `lorebook_*` tools are available throughout; phase advance, submission, validation and chapter writing all go through tools.
+1. **Mode anchoring (preset)** — anchors the "creator workspace" persona;
+2. **Soft guidance (skill)** — the `course-writing-workflow` skill auto-registers on enabling and loads the full methodology (per-kind workflow definitions, template usage, tool writing);
+3. **Hard rails (tools)** — host-registered `course_*` / `lorebook_*` tools are available throughout; project management, workflow editing, phase advance, submission, validation and drafting all go through tools.
 
 **Usage**: new session → preset picker → "虾说" → start creating; or it auto-syncs to `~/.dsh/.agent-presets/course-writer/` after install.
 
@@ -74,8 +84,12 @@ The plugin ships a **「虾说」agent preset**, selectable in DSH's new-session
 
 | Scenario | How |
 | --- | --- |
-| Write a new course from scratch | Open the workspace → "＋新建" → pick a course type → write chapter by chapter |
-| Already have an outline / knowledge points | Create the course, enter knowledge points into the lorebook, reference them in the text |
+| Write a new course from scratch | Open the home page → "＋ New project" → "Course" → write through the nine phases |
+| Draft an official document | New project → "Official" → brief → materials → outline → draft → compliance & sign-off |
+| Write a novel | New project → "Novel" → concept/worldbuilding/characters → outline/beats → draft → revision |
+| Write a thesis | New project → "Thesis" → topic → literature review → design → draft → compliance & defense |
+| Create a custom writing kind | Home page → create a kind (name + icon + genres + initial workflow) → follow your own pipeline |
+| Already have an outline / knowledge points | Create the project, enter knowledge points into the lorebook, reference them in the text |
 | Team collaboration | "分享" generates an editable link; multi-author editing with conflict detection |
 | Deliver a Word document | "导出" → Word(.docx) one-click download |
 | Inspect the knowledge structure | Right pane "知识图谱" visualizes knowledge-point relationships |
@@ -84,7 +98,7 @@ The plugin ships a **「虾说」agent preset**, selectable in DSH's new-session
 
 ## 📦 Install
 
-> Requires DSH (Windows/macOS/Linux; runtime Node ≥18). **Install only the LATEST release** (currently v0.5.0).
+> Requires DSH (Windows/macOS/Linux; runtime Node ≥18). **Install only the LATEST release** (currently v0.8.0).
 
 ### ① Let an AI install it (recommended)
 Paste this to any command-capable AI:
@@ -105,7 +119,7 @@ Requires Node ≥22 and Git:
 ```bash
 git clone https://github.com/bettermen/xiashuo.git && cd xiashuo
 npm install && npm run build && npm pack
-dsh plugin --profile web add ./dsh-external-xiashuo-0.6.0.tgz
+dsh plugin --profile web add ./dsh-external-xiashuo-0.8.0.tgz
 ```
 
 **After install**: the sidebar "虾说" entry and the settings card appear; if not, refresh/restart DSH and check the plugin is enabled.
@@ -114,24 +128,32 @@ dsh plugin --profile web add ./dsh-external-xiashuo-0.6.0.tgz
 
 ## 🚀 Quick start
 
-1. Open the sidebar "虾说" → "＋新建" → enter a course name + pick a course type
-2. Click chapters in the left pane to switch; write in the center pane (Markdown); auto-saves 2s after typing stops
-3. Right pane "资料库" to enter knowledge points (with keywords); "知识图谱" to view the structure
+1. Open the sidebar "虾说" → enter the **home page** → "＋ New project" → pick a kind (course/official/novel/thesis/custom) + genre
+2. Click a project card to enter the workspace; click chapters in the left pane to switch; write in the center pane (Markdown); auto-saves 2s after typing stops
+3. The left "Workflow" tab lets you edit the pipeline anytime (drag to reorder, add/remove phases, change gates); right pane "资料库" to enter knowledge points, "知识图谱" to view the structure
 4. Top "导出" to download TXT or Word; "分享" to generate a collaboration link
 
 Data lives in `~/.dsh/xiashuo/` by default:
 
 ```
 lorebook/       knowledge points (entries)
-projects/       projects (book.json + chapters/ + audit.jsonl + ...)
+projects/       projects (book.json + workflow.json + chapters/ + audit.jsonl + ...)
+templates/      user workflow templates
 ```
 
 ---
 
 ## 📖 Feature usage guide
 
-### 1️⃣ Create a course
-- Top "＋新建" → modal with course name + course-type dropdown (23 types, grouped) → create
+### 0️⃣ Home page — project management
+- Sidebar entry opens the home page: card/list view, filter by kind/status/keyword, sort
+- "＋ New project": pick kind (icon cards), genre cascade dropdown, summary, workflow-template picker
+- Card context menu: open / edit / duplicate / archive / delete (keep or delete drafts)
+
+### 1️⃣ Edit workflow (left "Workflow" tab)
+- Enter a project, switch the left pane to "Workflow": see the phase list (gate color dot + index + name)
+- **Drag** to reorder, "＋ Add phase" to insert, click a phase to open its property panel (gate / description / required artifacts / AI prompt / review rubric / skippable)
+- "Reset to default" returns to the kind's default workflow; "Save as template" stores the current workflow; "Templates" browses & applies built-in / your templates
 
 ### 2️⃣ Write chapters (CodeMirror editor)
 - Left pane chapter list to switch; center pane is a **CodeMirror 6 Markdown editor**
@@ -164,13 +186,13 @@ Notes:
 - Context menu also offers: preview / new lesson / copy title
 - Semantics:
   - Delete **keeps sparse numbering** (deleting lesson 2 leaves 1, 3) so external references (share links, ledger, AI context) stay valid; a new lesson takes `max(no)+1` and never collides
-  - Reorder **renumbers everything to 1..N** and re-maps the consistency ledger, then replays course variables in the new order
+  - Reorder **renumbers everything to 1..N** and re-maps the consistency ledger, then replays project variables in the new order
   - Both actions are written to the audit log (`action: delete` / `reorder`)
 
 ### 3️⃣ Lorebook (knowledge points)
 - Right pane "资料库" → "＋ 新建知识点" → name / content / keywords (comma-separated)
 - Each point supports **preview / edit / enable-disable / delete**
-- Isolated per course
+- Isolated per project
 
 ### 4️⃣ Knowledge graph
 - Right pane "知识图谱" → visualizes knowledge-point relationships
@@ -198,9 +220,12 @@ Notes:
 
 ## 🔌 Interaction with DSH
 
-- **agent tools**: `course_*` (project/phase/write/validate/export…) + `lorebook_*` (lorebook CRUD)
-- **skill**: `course-writing-workflow` (nine-phase methodology guidance)
-- **GUI API**: `/api/xiashuo/*` (projects/chapters/export/share/lorebook, fence-header protected)
+- **agent tools**: `course_*` (project CRUD / workflow editing / phase advance / drafting / validation / export…) + `lorebook_*` (lorebook CRUD)
+  - Project management: `course_projects` / `course_create_project` / `course_project_update` / `course_project_delete` / `course_clone_project`
+  - Workflow: `course_workflow` (list / add / rename / update / delete / reorder / reset)
+  - Writing: `course_phase` / `course_commit` / `course_write_chapter` / `course_commit_chapter` / `course_override`
+- **skill**: `course-writing-workflow` (multi-kind authoring methodology guidance)
+- **GUI API**: `/api/xiashuo/*` (projects/workflow/chapters/export/share/lorebook, fence-header protected)
 
 ---
 
@@ -210,7 +235,10 @@ Notes:
 A: By design — saving stays on the current chapter and only refreshes the chapter list, for uninterrupted writing.
 
 **Q: Will I lose edits when switching chapters?**
-A: No. With unsaved changes, switching chapter/course or closing prompts for confirmation first.
+A: No. With unsaved changes, switching chapter/project or closing prompts for confirmation first.
+
+**Q: What happens when I change a project's kind (course → novel)?**
+A: The kind determines the workflow, so changing it resets the workflow to the new kind's default. For projects with existing content, create a new project and import the drafts instead to avoid losing progress.
 
 **Q: Are share links safe?**
 A: Shares go through an independent `/share/` path with token auth — the admin password is never exposed; links can be revoked anytime.

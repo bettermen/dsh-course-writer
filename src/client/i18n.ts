@@ -279,6 +279,7 @@ const zh = {
   phaseAdded: '已添加阶段',
   applyTemplateConfirm: '应用模板「%s」将替换当前流程，是否继续？',
   noTemplates: '暂无用户模板',
+  newPhaseName: '新阶段',
 } as const
 
 const en: Record<keyof typeof zh, string> = {
@@ -539,6 +540,7 @@ const en: Record<keyof typeof zh, string> = {
   phaseAdded: 'Phase added',
   applyTemplateConfirm: 'Applying template "%s" will replace the current workflow. Continue?',
   noTemplates: 'No user templates yet',
+  newPhaseName: 'New phase',
 }
 
 let lang: 'zh' | 'en' = 'zh'

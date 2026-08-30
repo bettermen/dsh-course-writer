@@ -259,7 +259,7 @@ export function WorkflowEditor({ base, fenceHeader, projectId, onChanged }: Work
       if (busy) return
       setBusy(true)
       try {
-        const wf = await api.addPhase(projectId, { name: '新阶段' })
+        const wf = await api.addPhase(projectId, { name: t('newPhaseName') })
         setWorkflow(wf)
         onChanged?.(wf)
         showToast(t('phaseAdded'))

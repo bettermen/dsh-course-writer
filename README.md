@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="./assets/brand/banner.svg" alt="虾说教材写作 — AI 教材写作工作台" width="100%">
+  <img src="./assets/brand/banner.svg" alt="虾说 — AI 教材写作工作台" width="100%">
 </p>
 
-# 虾说教材写作（dsh-course-writer）
+# 虾说（xiashuo）
 
 > **AI course-authoring workspace plugin for [DeepSeek Harness](https://deepseek-harness.github.io/deepseek-harness/guide/quickstart) (DSH)** — three-pane workspace · nine-phase gated workflow · course/chapter/lorebook management · knowledge graph · TXT/Word export · share & collaborate.
 
@@ -12,7 +12,7 @@
 - 中文 | [English](./README.en.md)
 
 <p align="center">
-  <img src="./assets/brand/logo.png" alt="虾说教材写作 Logo" width="120">
+  <img src="./assets/brand/logo.png" alt="虾说 Logo" width="120">
 </p>
 
 让 DSH 像一位专业的教材编写专家与你协同：从选题、学情分析、教学目标到教案、课件练习、评估结课，每一步有方法、有门禁、可校验、可导出，并配有资料库与知识图谱把知识点结构固化下来。
@@ -57,18 +57,18 @@
 - 三栏宽度可拖拽调整
 
 <p align="center">
-  <img src="./assets/screenshots/shot-gui.png" alt="虾说教材写作三栏式工作台" width="820">
+  <img src="./assets/screenshots/shot-gui.png" alt="虾说三栏式工作台" width="820">
 </p>
 
 ### 🎭 教材写作模式预设（agent 预设）
-插件随包装载一个 **「虾说教材写作」agent 预设**，在 DSH 新建会话时的模式选择器里即可选用——选中即"一键进入教材编写模式"。
+插件随包装载一个 **「虾说」agent 预设**，在 DSH 新建会话时的模式选择器里即可选用——选中即"一键进入教材编写模式"。
 
 **三通道协同，约束模型行为**：
 1. **模式锚定（本预设）**——预设锚定"教材编写专家" persona；
 2. **软引导（技能）**——随 enabling 自动注册的 `course-writing-workflow` 技能，进入会话后加载完整编写方法论（九阶段定义、模板用法、工具写法）；
 3. **硬轨道（工具）**——host 注册的 `course_*` / `lorebook_*` 工具随预设全程可调，阶段推进、产物提交、校验、写教案都走工具。
 
-**使用方式**：新建会话 → 预设选择器选「虾说教材写作」→ 直接开始创作；或安装后自动同步到本地 `~/.dsh/.agent-presets/course-writer/`。
+**使用方式**：新建会话 → 预设选择器选「虾说」→ 直接开始创作；或安装后自动同步到本地 `~/.dsh/.agent-presets/course-writer/`。
 
 ---
 
@@ -91,7 +91,7 @@
 ### ① 一句话让 AI 装（推荐）
 把下面这段发给能执行命令的 AI：
 
-> 帮我安装 DSH 插件「虾说教材写作」(dsh-course-writer)，**只装最新版**。步骤：从 `https://github.com/bettermen/dsh-course-writer/releases/latest` 下载最新的 `dsh-external-dsh-course-writer-*.tgz`（版本号最大的那个）→ 执行 `dsh plugin --profile web add <该 tgz 绝对路径>` → `dsh plugin list` 确认在列且已启用 → 提醒我刷新 DSH 页面（Ctrl+Shift+R）后侧边栏出现「虾说教材写作」。遇到报错先告诉我再处理。
+> 帮我安装 DSH 插件「虾说」(dsh-course-writer)，**只装最新版**。步骤：从 `https://github.com/bettermen/dsh-course-writer/releases/latest` 下载最新的 `dsh-external-dsh-course-writer-*.tgz`（版本号最大的那个）→ 执行 `dsh plugin --profile web add <该 tgz 绝对路径>` → `dsh plugin list` 确认在列且已启用 → 提醒我刷新 DSH 页面（Ctrl+Shift+R）后侧边栏出现「虾说」。遇到报错先告诉我再处理。
 
 ### ② 手动下载装
 从 https://github.com/bettermen/dsh-course-writer/releases/latest 下载最新的 `dsh-external-dsh-course-writer-*.tgz`，然后：
@@ -110,13 +110,13 @@ npm install && npm run build && npm pack
 dsh plugin --profile web add ./dsh-external-dsh-course-writer-0.5.0.tgz
 ```
 
-**装完**：侧边栏出现「虾说教材写作」、设置页出现同名卡片即完成；没有就刷新页面/重启 DSH 并在插件列表确认已启用。
+**装完**：侧边栏出现「虾说」、设置页出现同名卡片即完成；没有就刷新页面/重启 DSH 并在插件列表确认已启用。
 
 ---
 
 ## 🚀 快速开始
 
-1. 打开侧边栏「虾说教材写作」→ 点「＋新建」→ 输入课程名 + 选课程类型
+1. 打开侧边栏「虾说」→ 点「＋新建」→ 输入课程名 + 选课程类型
 2. 左栏点章节切换，中栏写正文（Markdown），停止输入 2 秒自动保存
 3. 右栏「资料库」录入知识点（含关键词），「知识图谱」查看知识结构
 4. 顶部「导出」→ 选 TXT 或 Word 下载；「分享」→ 生成协作链接
@@ -194,7 +194,7 @@ projects/      项目（book.json + chapters/ + audit.jsonl + ...）
 | --- | --- | --- |
 | enabled | true | 插件总开关（关闭即注销工具/技能，数据保留） |
 | dataDir | `~/.dsh/dsh-course-writer` | 数据根目录 |
-| uiHidden | false | 隐藏侧边栏「虾说教材写作」入口 |
+| uiHidden | false | 隐藏侧边栏「虾说」入口 |
 
 ---
 

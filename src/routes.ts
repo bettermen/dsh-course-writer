@@ -32,7 +32,7 @@ function sharePageHtml(title: string, mode: 'read' | 'write', token: string): st
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${esc(title)} · 虾说教材写作</title>
+<title>${esc(title)} · 虾说</title>
 <style>
 *{box-sizing:border-box}body{margin:0;font-family:system-ui,-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;color:#222;background:#f5f7fa}
 header{background:#243A61;color:#fff;padding:14px 20px;display:flex;align-items:center;gap:10px}

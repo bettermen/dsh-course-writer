@@ -48,7 +48,7 @@ export function apply(ctx: ClientContext): void {
       id: '@dsh-external/dsh-course-writer',
       key: '@dsh-external/dsh-course-writer',
       order: 110,
-      label: () => '虾说教材写作',
+      label: () => '虾说',
     } as never, () => React.createElement(NovelSettingsCard, { scope })),
   ), '@dsh-external/dsh-course-writer: settings card')
 

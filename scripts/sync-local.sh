@@ -1,5 +1,5 @@
 #!/bin/bash
-# 虾说教材写作 — 一键同步到本机 DeepSeek Harness 桌面客户端
+# 虾说 — 一键同步到本机 DeepSeek Harness 桌面客户端
 #
 # 用法：bash scripts/sync-local.sh
 #

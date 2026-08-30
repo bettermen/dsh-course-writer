@@ -5,7 +5,7 @@
  */
 
 const zh = {
-  appName: '虾说教材写作',
+  appName: '虾说',
   newProject: '＋新建',
   rename: '重命名',
   delete: '删除',
@@ -177,7 +177,7 @@ const zh = {
 } as const
 
 const en: Record<keyof typeof zh, string> = {
-  appName: 'XiaShuo Course Writer',
+  appName: 'xiashuo',
   newProject: '＋ New',
   rename: 'Rename',
   delete: 'Delete',

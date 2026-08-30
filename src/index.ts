@@ -41,7 +41,7 @@ export interface Config {
   enabled: boolean
   /** 数据根目录（默认 ~/.dsh/dsh-course-writer）。 */
   dataDir: string
-  /** 隐藏侧边栏「虾说教材写作」入口（摸鱼模式；入口隐藏后需到设置里重新打开）。 */
+  /** 隐藏侧边栏「虾说」入口（摸鱼模式；入口隐藏后需到设置里重新打开）。 */
   uiHidden: boolean
 }
 

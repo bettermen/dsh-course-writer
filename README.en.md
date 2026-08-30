@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="./assets/brand/banner.svg" alt="虾说教材写作 — AI Course-Authoring Workspace" width="100%">
+  <img src="./assets/brand/banner.svg" alt="虾说 — AI Course-Authoring Workspace" width="100%">
 </p>
 
-# 虾说教材写作 (dsh-course-writer)
+# 虾说 (xiashuo)
 
 An **AI course-authoring workspace plugin** for [DeepSeek Harness](https://deepseek-harness.github.io/deepseek-harness/guide/quickstart) (DSH):
 **three-pane workspace + nine-phase gated workflow + course/chapter/lorebook management + TXT/Word export + share & collaborate**.
@@ -10,7 +10,7 @@ An **AI course-authoring workspace plugin** for [DeepSeek Harness](https://deeps
 - [中文](./README.md) | English
 
 <p align="center">
-  <img src="./assets/brand/logo.png" alt="虾说教材写作 Logo" width="120">
+  <img src="./assets/brand/logo.png" alt="虾说 Logo" width="120">
 </p>
 
 Let DSH work with you like a professional curriculum author: from topic selection, learner analysis and learning objectives to lesson plans, exercises and assessment — every step is methodical, gated, verifiable and exportable, with a lorebook and knowledge graph that solidify the knowledge structure.
@@ -55,18 +55,18 @@ Let DSH work with you like a professional curriculum author: from topic selectio
 - Three-pane widths drag-adjustable
 
 <p align="center">
-  <img src="./assets/screenshots/shot-gui.png" alt="虾说教材写作 three-pane workspace" width="820">
+  <img src="./assets/screenshots/shot-gui.png" alt="虾说 three-pane workspace" width="820">
 </p>
 
 ### 🎭 Course-authoring mode preset (agent preset)
-The plugin ships a **「虾说教材写作」agent preset**, selectable in DSH's new-session mode picker — picking it enters "course-authoring mode" instantly.
+The plugin ships a **「虾说」agent preset**, selectable in DSH's new-session mode picker — picking it enters "course-authoring mode" instantly.
 
 **Three-channel coordination that constrains the model**:
 1. **Mode anchoring (preset)** — anchors the "curriculum author" persona;
 2. **Soft guidance (skill)** — the `course-writing-workflow` skill auto-registers on enabling and loads the full methodology;
 3. **Hard rails (tools)** — host-registered `course_*` / `lorebook_*` tools are available throughout; phase advance, submission, validation and chapter writing all go through tools.
 
-**Usage**: new session → preset picker → "虾说教材写作" → start creating; or it auto-syncs to `~/.dsh/.agent-presets/course-writer/` after install.
+**Usage**: new session → preset picker → "虾说" → start creating; or it auto-syncs to `~/.dsh/.agent-presets/course-writer/` after install.
 
 ---
 
@@ -89,7 +89,7 @@ The plugin ships a **「虾说教材写作」agent preset**, selectable in DSH's
 ### ① Let an AI install it (recommended)
 Paste this to any command-capable AI:
 
-> Install the DSH plugin "虾说教材写作" (dsh-course-writer), **LATEST version only**. From `https://github.com/bettermen/dsh-course-writer/releases/latest` download the newest `dsh-external-dsh-course-writer-*.tgz` (highest version) → run `dsh plugin --profile web add <absolute tgz path>` → confirm with `dsh plugin list` → tell me to refresh the DSH page (Ctrl+Shift+R) so the sidebar entry appears. Report any error first.
+> Install the DSH plugin "虾说" (dsh-course-writer), **LATEST version only**. From `https://github.com/bettermen/dsh-course-writer/releases/latest` download the newest `dsh-external-dsh-course-writer-*.tgz` (highest version) → run `dsh plugin --profile web add <absolute tgz path>` → confirm with `dsh plugin list` → tell me to refresh the DSH page (Ctrl+Shift+R) so the sidebar entry appears. Report any error first.
 
 ### ② Manual install
 Download the newest `dsh-external-dsh-course-writer-*.tgz` from https://github.com/bettermen/dsh-course-writer/releases/latest, then:
@@ -108,13 +108,13 @@ npm install && npm run build && npm pack
 dsh plugin --profile web add ./dsh-external-dsh-course-writer-0.5.0.tgz
 ```
 
-**After install**: the sidebar "虾说教材写作" entry and the settings card appear; if not, refresh/restart DSH and check the plugin is enabled.
+**After install**: the sidebar "虾说" entry and the settings card appear; if not, refresh/restart DSH and check the plugin is enabled.
 
 ---
 
 ## 🚀 Quick start
 
-1. Open the sidebar "虾说教材写作" → "＋新建" → enter a course name + pick a course type
+1. Open the sidebar "虾说" → "＋新建" → enter a course name + pick a course type
 2. Click chapters in the left pane to switch; write in the center pane (Markdown); auto-saves 2s after typing stops
 3. Right pane "资料库" to enter knowledge points (with keywords); "知识图谱" to view the structure
 4. Top "导出" to download TXT or Word; "分享" to generate a collaboration link
@@ -192,7 +192,7 @@ Notes:
 | --- | --- | --- |
 | enabled | true | Plugin master switch (disable unregisters tools/skill; data kept) |
 | dataDir | `~/.dsh/dsh-course-writer` | Data root directory |
-| uiHidden | false | Hide the sidebar "虾说教材写作" entry |
+| uiHidden | false | Hide the sidebar "虾说" entry |
 
 ---
 

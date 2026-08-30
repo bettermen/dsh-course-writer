@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="虾说 · xiashuo Logo">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#243A61"/>
+      <stop offset="0.5" stop-color="#3D5D89"/>
+      <stop offset="1" stop-color="#6DC5F2"/>
+    </linearGradient>
+    <linearGradient id="shrimp" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#CFE8FF"/>
+    </linearGradient>
+  </defs>
+
+  <!-- 圆角方形背景 -->
+  <rect x="0" y="0" width="512" height="512" rx="112" fill="url(#bg)"/>
+
+  <!-- 虾形 mark -->
+  <g transform="translate(35.5, -27) scale(1.5)" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <!-- 触须 -->
+    <path d="M 56 176 C 38 148 24 138 10 130" stroke="#CFE8FF" stroke-width="5"/>
+    <path d="M 56 176 C 40 188 28 194 14 202" stroke="#CFE8FF" stroke-width="5"/>
+    <!-- 脚 -->
+    <path d="M 92 160 L 86 190" stroke="#9FCBEC" stroke-width="4" opacity="0.8"/>
+    <path d="M 122 144 L 118 176" stroke="#9FCBEC" stroke-width="4" opacity="0.8"/>
+    <path d="M 154 130 L 152 162" stroke="#9FCBEC" stroke-width="4" opacity="0.8"/>
+    <path d="M 186 120 L 188 150" stroke="#9FCBEC" stroke-width="4" opacity="0.8"/>
+    <!-- 身体主弧 -->
+    <path d="M 56 176 C 58 118 118 92 176 108 C 208 117 228 112 246 98" stroke="url(#shrimp)" stroke-width="10"/>
+    <!-- 分节线 -->
+    <path d="M 106 136 C 120 144 134 144 142 137" stroke="#EAF3FC" stroke-width="4" opacity="0.85"/>
+    <path d="M 148 122 C 162 128 176 126 182 119" stroke="#EAF3FC" stroke-width="4" opacity="0.85"/>
+    <path d="M 192 112 C 204 116 214 113 219 107" stroke="#EAF3FC" stroke-width="4" opacity="0.85"/>
+    <!-- 尾扇 -->
+    <path d="M 246 98 L 278 74" stroke="url(#shrimp)" stroke-width="8"/>
+    <path d="M 246 98 L 284 102" stroke="url(#shrimp)" stroke-width="8"/>
+    <path d="M 246 98 L 270 134" stroke="url(#shrimp)" stroke-width="8"/>
+    <!-- 眼睛 -->
+    <circle cx="74" cy="150" r="8" fill="#FFFFFF" stroke="none"/>
+    <circle cx="76" cy="149" r="3.2" fill="#243A61" stroke="none"/>
+  </g>
+
+  <!-- 品牌文字 -->
+  <text x="256" y="360" text-anchor="middle" font-family="'PingFang SC','Microsoft YaHei','Noto Sans CJK SC',sans-serif" font-size="96" font-weight="700" fill="#FFFFFF" letter-spacing="6">虾说</text>
+  <text x="256" y="424" text-anchor="middle" font-family="'SF Pro Display','PingFang SC','Microsoft YaHei',sans-serif" font-size="40" font-weight="600" fill="#CFE8FF" letter-spacing="4">xiashuo</text>
+</svg>

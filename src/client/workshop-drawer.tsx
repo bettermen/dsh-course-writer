@@ -593,7 +593,7 @@ function WorkshopPanelView(state: DrawerState): React.ReactNode {
     )
 
   return React.createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: '10px' } },
-    React.createElement('div', { style: { fontWeight: 700, fontSize: '14px' } }, '虾说教材写作 · 项目'),
+    React.createElement('div', { style: { fontWeight: 700, fontSize: '14px' } }, '虾说 · 项目'),
     React.createElement('div', { style: { display: 'flex', gap: '6px' } },
       React.createElement('input', {
         id: 'novel-title',
@@ -647,7 +647,7 @@ export function mountWorkshopDrawer(options: WorkshopOptions): WorkshopHandle {
       ? '资料库'
       : state.selected
         ? (state.detail?.book.title ?? '项目详情')
-        : '虾说教材写作'
+        : '虾说'
     root.render(React.createElement(ErrorBoundary, null,
       React.createElement('div', { style: { display: 'flex', flexDirection: 'column', height: '100%' } },
         // 全局固定头部：视图标题 + 展开/收起（不随内容滚动，层级高于聊天条）

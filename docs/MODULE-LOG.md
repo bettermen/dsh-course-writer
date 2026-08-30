@@ -921,5 +921,36 @@
 6. ⚠️ 已知弱点：首页搜索为「输入即查 + 200ms 防抖」，大数据量下仍每屏触发一次请求（后端 `GET /projects` 全目录遍历，见模块 20 遗留项 6，`index.json` 未启动）
 
 **遗留事项**：
-- [ ] P5 流程编辑器 UI（`src/client/workflow-editor.tsx`）—— 工作台左栏「流程」页，尚未启动
 - [ ] 首页冒烟验证依赖用户重启本机 DSH 客户端（`scripts/sync-local.sh` 已同步，重启后侧边栏入口即开首页）
+
+## 模块 22：流程编辑器 UI（P5 —— 工作台左栏「流程」页 + 阶段增删改序 + 属性面板 + 模板库）
+
+**日期**：2026-08-30
+
+**背景**：P2 已把工作流编辑的**后端接口**全部就绪（`/projects/<id>/workflow` + phases 增删改序 + `/workflows` 模板库），P4 已把**首页**落地。P5 补上最后一块：让用户在工作台内**可视化编辑**某个项目的流程——拖拽排序、增删阶段、编辑门禁/产物/提示词/评审标准、恢复默认、另存为模板、应用/删除模板。
+
+**范围**：
+1. **`src/client/api.ts`（扩展）**：新增 8 个项目工作流方法 + 4 个模板库方法 + `PhasePatch`/`SaveAsTemplateInput`/`TemplatePatch` 类型。方法：`getWorkflow`(GET)/`saveWorkflow`(PUT)/`resetWorkflow`(POST reset)/`addPhase`(POST phases)/`reorderPhases`(POST phases/reorder)/`renamePhase`/`updatePhase`/`deletePhase`(POST phases/<id>/<action>)；`saveAsTemplate`(POST /workflows)/`getTemplate`(GET)/`updateTemplate`(PATCH)/`deleteTemplate`(DELETE)。`listTemplates(kind, scope)` 手动拼 `?kind=&scope=`（`scope` 非 `ProjectQuery` 键，不能复用 `buildQuery`）。所有写操作返回「保存后的完整 Workflow」。
+2. **`src/client/workflow-editor.tsx`（新，~500 行）**：`WorkflowEditor({ base, fenceHeader, projectId, onChanged? })`。阶段列表（拖拽排序 / 序号 / 门禁色点 / 名称 / ⏭ 可跳标记 / 右键菜单）；`PhaseEditModal`（名称 / 门禁下拉 / 说明 / 必交产物增删改（类型下拉 + 标签 + min 数字）/ AI 提示词 / 评审标准（gate=ai 时显示）/ 可跳过勾选）；`TemplatesModal`（内置模板 vs 我的模板分区、阶段数徽章、应用/删除）；`SaveAsModal`（另存为模板，名称校验 + 错误内联展示）。写操作统一 `mutate()`（busy 锁 + 错误 toast + 用返回 workflow 覆盖本地态）。门禁/产物枚举在文件顶部 `GATE_OPTIONS`/`ARTIFACT_KINDS` 声明。
+3. **`src/client/workshop-layout.tsx`（接线）**：左栏 segmented 由「章节 / 阶段」扩展为「章节 / 阶段 / 流程」三视图；`leftTab` 类型加 `'workflow'`；选中「流程」且 `selected` 非空时渲染 `<WorkflowEditor … onChanged={() => void refreshBook()}>`（新增 `refreshBook` 轻量刷新项目详情，保持阶段状态/当前阶段/进度同步）。
+4. **`src/client/i18n.ts`**：追加 ~30 键（`workflowTab`/`addPhase`/`editPhase`/`fieldGate`/`gate*`/`artifact*`/`resetWorkflow`/`saveAsTemplate`/`templateLib`/`applyTemplate` 等，zh/en 对齐）。
+5. 样式复用：阶段列表复用 `.cw-list-item.is-dragging/.is-drop-target/.cw-drag-handle`（模块 13 章节拖拽已建）；门禁/状态徽章复用 `.cw-badge.is-*`；弹窗复用 `.cw-modal*`/`.cw-field*`/`.cw-btn-*`（`cw-btn-danger`/`cw-btn-tertiary` 均已在模块 13/21 就位）——**零新增样式**。
+
+**验收证据**：
+- `npm run typecheck` 0 错误（host + client 双段）
+- `npm run build` 成功：`lib/client.js` 1.32 MB → **1.35 MB**（含流程编辑器）
+- 新增 `tests/client-api.spec.ts` P5 用例（+7，共 27 例）：`getWorkflow`/`saveWorkflow`/`resetWorkflow`/`addPhase+reorder+rename+update+delete` 路径与动作、`listTemplates` 的 kind/scope 查询串、`saveAsTemplate` 的 projectId/kind 体、`getTemplate/updateTemplate/deleteTemplate` 动作
+- 分批回归：`client-api`(27) + `routes-api`(33) + `workflow-dynamic`(15) + `workflow`(17) + `project-query`(24) = **116 例全绿**；核心层零改动，无回归
+
+**Code Review 结论（通过 ✅）**：
+1. ✅ 客户端路径与后端路由逐条对齐（`GET/PUT /projects/<id>/workflow`、`POST …/phases[/reorder|/<id>/<rename|update|delete>]`、`/workflows` 五动作），由 `routes-api.spec.ts` 与 `client-api.spec.ts` 两侧共同锁定
+2. ✅ 服务端为唯一事实源：每个写操作后端都返回「保存后的完整 Workflow」，编辑器直接替换本地态，避免前端自行重算顺序/去重 id
+3. ✅ 写操作加 `busy` 锁防重入；删除阶段/恢复默认/应用模板均有 `window.confirm` 二次确认；`applyTemplate` 走 `getTemplate → saveWorkflow` 两步，规避「模板 id 直接落为项目工作流 id」的伪造风险（后端 `PUT /workflow` 强制 `id: wf_<projectId>`）
+4. ✅ 组件自包含 + 幂等：`WorkflowEditor` 自己 `createXiashuoApi` + `injectAppleStyles`，无全局耦合；`onChanged` 只做轻量详情刷新（`refreshBook` 静默失败）
+5. ✅ 未改核心层：P5 纯 UI 层，`src/core/**` 零改动，故无回归面
+6. ⚠️ 已知边界：工作台左栏「阶段」视图仍是模块早期硬编码的 9 阶段静态数组（`PHASES`），尚未消费动态 `workflow.phases`——P1 已让引擎动态化、但该视图未跟进；流程编辑器的增删改序结果要等 `refreshBook` 后部分反映（阶段**状态**会刷新，但阶段**清单**仍是静态 9 项）。计划作为后续 P 项单独收敛。
+
+**遗留事项**：
+- [ ] 工作台「阶段」视图改用动态 `workflow.phases`（当前仍硬编码 9 阶段，与可编辑工作流脱节）
+- [ ] 阶段属性里的 `nameEn` 字段：`PhaseEditModal` 未提供编辑入口（后端 `update` 动作也不收 `nameEn`），用户自定义阶段的英文名暂不可改
+- [ ] GitHub 推送受沙箱网络限制（直连超时 / 代理 502），本地已提交待补推

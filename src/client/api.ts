@@ -12,6 +12,7 @@
  * 本层把后者统一转成 ApiRequestError（带 code 与 HTTP status），调用方无需重复判断。
  */
 import type { ProjectStatus } from '../core/novel/status.ts'
+import type { Workflow, WorkflowPhase, WorkflowArtifact, PhaseGate } from '../core/workflow/schema.ts'
 
 /** 首页列表项（= 后端 ProjectListItem）。 */
 export interface ProjectItem {
@@ -145,6 +146,26 @@ export type FetchLike = (url: string, init?: {
   body?: string
 }) => Promise<{ ok: boolean; status: number; json: () => Promise<unknown> }>
 
+/** 阶段属性补丁（对齐后端 `update` 动作接受的字段）。 */
+export type PhasePatch = Partial<Omit<WorkflowPhase, 'id'>>
+
+/** 另存为模板入参。 */
+export interface SaveAsTemplateInput {
+  name: string
+  nameEn?: string
+  /** 从项目流程派生（优先）；缺省时需提供 workflow。 */
+  projectId?: string
+  kind?: string
+}
+
+/** 模板补丁（对齐后端 PATCH /workflows/<id>）。 */
+export interface TemplatePatch {
+  name?: string
+  nameEn?: string
+  kind?: string
+  phases?: WorkflowPhase[]
+}
+
 export interface XiashuoApi {
   listKinds(): Promise<ProjectKind[]>
   listProjects(query?: ProjectQuery): Promise<ProjectItem[]>
@@ -154,8 +175,22 @@ export interface XiashuoApi {
   deleteProject(id: string, keepFiles: boolean): Promise<{ deleted: boolean }>
   duplicateProject(id: string): Promise<ProjectItem>
   archiveProject(id: string, archived: boolean): Promise<ProjectItem>
-  listTemplates(kind?: string): Promise<WorkflowTemplate[]>
+  listTemplates(kind?: string, scope?: 'builtin' | 'user'): Promise<WorkflowTemplate[]>
   importFile(fileName: string, content: string, kind?: string): Promise<ImportResult>
+  // ── 项目工作流（P5 流程编辑器） ──
+  getWorkflow(projectId: string): Promise<Workflow>
+  saveWorkflow(projectId: string, workflow: Workflow): Promise<Workflow>
+  resetWorkflow(projectId: string): Promise<Workflow>
+  addPhase(projectId: string, input: { name: string; index?: number; gate?: PhaseGate }): Promise<Workflow>
+  reorderPhases(projectId: string, from: number, to: number): Promise<Workflow>
+  renamePhase(projectId: string, phaseId: string, name: string): Promise<Workflow>
+  updatePhase(projectId: string, phaseId: string, patch: PhasePatch): Promise<Workflow>
+  deletePhase(projectId: string, phaseId: string): Promise<Workflow>
+  // ── 模板库 ──
+  saveAsTemplate(input: SaveAsTemplateInput): Promise<WorkflowTemplate>
+  getTemplate(id: string): Promise<Workflow>
+  updateTemplate(id: string, patch: TemplatePatch): Promise<WorkflowTemplate>
+  deleteTemplate(id: string): Promise<{ deleted: boolean }>
 }
 
 /**
@@ -199,8 +234,33 @@ export function createXiashuoApi(
     duplicateProject: (id) => request<ProjectItem>('POST', `/projects/${encodeURIComponent(id)}/duplicate`),
     archiveProject: (id, archived) =>
       request<ProjectItem>('POST', `/projects/${encodeURIComponent(id)}/archive`, { archived }),
-    listTemplates: (kind) => request<WorkflowTemplate[]>('GET', pathOf('/workflows', { kind })),
+    listTemplates: (kind, scope) => {
+      const params = new URLSearchParams()
+      if (kind) params.set('kind', kind)
+      if (scope) params.set('scope', scope)
+      const qs = params.toString()
+      return request<WorkflowTemplate[]>('GET', `/workflows${qs ? `?${qs}` : ''}`)
+    },
     importFile: (fileName, content, kind) =>
       request<ImportResult>('POST', '/import', { fileName, content, kind }),
+    getWorkflow: (projectId) => request<Workflow>('GET', `/projects/${encodeURIComponent(projectId)}/workflow`),
+    saveWorkflow: (projectId, workflow) =>
+      request<Workflow>('PUT', `/projects/${encodeURIComponent(projectId)}/workflow`, workflow),
+    resetWorkflow: (projectId) =>
+      request<Workflow>('POST', `/projects/${encodeURIComponent(projectId)}/workflow/reset`),
+    addPhase: (projectId, input) =>
+      request<Workflow>('POST', `/projects/${encodeURIComponent(projectId)}/workflow/phases`, input),
+    reorderPhases: (projectId, from, to) =>
+      request<Workflow>('POST', `/projects/${encodeURIComponent(projectId)}/workflow/phases/reorder`, { from, to }),
+    renamePhase: (projectId, phaseId, name) =>
+      request<Workflow>('POST', `/projects/${encodeURIComponent(projectId)}/workflow/phases/${encodeURIComponent(phaseId)}/rename`, { name }),
+    updatePhase: (projectId, phaseId, patch) =>
+      request<Workflow>('POST', `/projects/${encodeURIComponent(projectId)}/workflow/phases/${encodeURIComponent(phaseId)}/update`, patch),
+    deletePhase: (projectId, phaseId) =>
+      request<Workflow>('POST', `/projects/${encodeURIComponent(projectId)}/workflow/phases/${encodeURIComponent(phaseId)}/delete`),
+    saveAsTemplate: (input) => request<WorkflowTemplate>('POST', '/workflows', input),
+    getTemplate: (id) => request<Workflow>('GET', `/workflows/${encodeURIComponent(id)}`),
+    updateTemplate: (id, patch) => request<WorkflowTemplate>('PATCH', `/workflows/${encodeURIComponent(id)}`, patch),
+    deleteTemplate: (id) => request<{ deleted: boolean }>('DELETE', `/workflows/${encodeURIComponent(id)}`),
   }
 }

@@ -11,6 +11,7 @@ import { ContextMenu, type MenuItem } from './context-menu.tsx'
 import { MarkdownEditor, type MarkdownEditorApi } from './markdown-editor.tsx'
 import { MdToolbar } from './md-toolbar.tsx'
 import { renderMarkdown } from './markdown-render.ts'
+import { WorkflowEditor } from './workflow-editor.tsx'
 
 const GENRE_GROUPS = [...new Set(GENRES.map((g) => g.group))]
 
@@ -159,7 +160,7 @@ export function WorkshopLayout({ api: base, fenceHeader, initialProjectId, onBac
   const [viewMode, setViewMode] = useState<'edit' | 'preview'>('edit')
   const [win, setWin] = useState<'full' | 'half'>('full')
   const [halfSize, setHalfSize] = useState(() => ({ w: Math.round(window.innerWidth * 0.46), h: Math.round(window.innerHeight * 0.58) }))
-  const [leftTab, setLeftTab] = useState<'chapters' | 'phases'>('chapters')
+  const [leftTab, setLeftTab] = useState<'chapters' | 'phases' | 'workflow'>('chapters')
   const [leftW, setLeftW] = useState(220)
   const [rightW, setRightW] = useState(300)
   const [showCreate, setShowCreate] = useState(false)
@@ -224,6 +225,17 @@ export function WorkshopLayout({ api: base, fenceHeader, initialProjectId, onBac
     await loadChapter(id, 1)
     const ch = await api(`/projects/${id}/chapters`)
     setChapters((ch?.value ?? ch ?? []) as Array<{ no: number; title: string; words: number }>)
+  }
+
+  /** 流程被编辑后轻量刷新项目详情（阶段状态 / 当前阶段 / 进度保持同步）。 */
+  const refreshBook = async (): Promise<void> => {
+    if (!selected) return
+    try {
+      const bd = await api(`/projects/${selected}`)
+      setBook((bd?.value ?? bd) as BookDetail)
+    } catch {
+      /* 静默失败：详情刷新失败不影响流程编辑器继续可用 */
+    }
   }
 
   const saveInternal = async (silent: boolean): Promise<void> => {
@@ -642,8 +654,15 @@ export function WorkshopLayout({ api: base, fenceHeader, initialProjectId, onBac
             <div className="cw-segmented">
               <button onClick={() => setLeftTab('chapters')} className={leftTab === 'chapters' ? 'cw-seg-item is-active' : 'cw-seg-item'}>{t('chapters')}</button>
               <button onClick={() => setLeftTab('phases')} className={leftTab === 'phases' ? 'cw-seg-item is-active' : 'cw-seg-item'}>{t('phases')}</button>
+              <button onClick={() => setLeftTab('workflow')} className={leftTab === 'workflow' ? 'cw-seg-item is-active' : 'cw-seg-item'}>{t('workflowTab')}</button>
             </div>
-            {leftTab === 'chapters' ? (
+            {leftTab === 'workflow' ? (
+              selected ? (
+                <WorkflowEditor base={base} fenceHeader={fenceHeader} projectId={selected} onChanged={() => void refreshBook()} />
+              ) : (
+                <div style={{ fontSize: 12, color: 'var(--cw-tertiaryLabel)', padding: 8 }}>{t('noChapters')}</div>
+              )
+            ) : leftTab === 'chapters' ? (
               <>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <span style={{ fontSize: 12, color: 'var(--cw-secondaryLabel)', fontWeight: 500 }}>{t('chapters')}</span>

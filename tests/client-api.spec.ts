@@ -186,3 +186,93 @@ describe('client/api — createXiashuoApi', () => {
     expect(kinds[0]!.id).toBe('course')
   })
 })
+
+describe('client/api — P5 流程编辑器方法', () => {
+  const spy = () => {
+    const calls: Array<{ url: string; method?: string; body?: unknown }> = []
+    const fetchImpl: FetchLike = async (url, init) => {
+      calls.push({ url, method: init?.method, body: init?.body ? JSON.parse(init.body) : undefined })
+      return { ok: true, status: 200, json: async () => ({ ok: true, value: { id: 'wf', name: '流程', kind: 'course', scope: 'project', phases: [] } }) }
+    }
+    const api = createXiashuoApi('/api/xiashuo', 'x-xiashuo', fetchImpl)
+    return { calls, api }
+  }
+
+  it('getWorkflow GET /projects/<id>/workflow', async () => {
+    const { calls, api } = spy()
+    await api.getWorkflow('p1')
+    expect(calls[0]!.url).toBe('/api/xiashuo/projects/p1/workflow')
+    expect(calls[0]!.method).toBe('GET')
+  })
+
+  it('saveWorkflow PUT 完整 workflow 体', async () => {
+    const { calls, api } = spy()
+    const wf = { id: 'wf', name: '流程', kind: 'course', scope: 'project', phases: [] } as never
+    await api.saveWorkflow('p1', wf)
+    expect(calls[0]!.url).toBe('/api/xiashuo/projects/p1/workflow')
+    expect(calls[0]!.method).toBe('PUT')
+    expect(calls[0]!.body).toEqual(wf)
+  })
+
+  it('resetWorkflow POST /workflow/reset', async () => {
+    const { calls, api } = spy()
+    await api.resetWorkflow('p1')
+    expect(calls[0]!.url).toBe('/api/xiashuo/projects/p1/workflow/reset')
+    expect(calls[0]!.method).toBe('POST')
+  })
+
+  it('addPhase / reorder / rename / update / delete 路径与动作', async () => {
+    const { calls, api } = spy()
+    await api.addPhase('p1', { name: '新阶段' })
+    expect(calls[0]!.url).toBe('/api/xiashuo/projects/p1/workflow/phases')
+    expect(calls[0]!.body).toEqual({ name: '新阶段' })
+
+    await api.reorderPhases('p1', 0, 2)
+    expect(calls[1]!.url).toBe('/api/xiashuo/projects/p1/workflow/phases/reorder')
+    expect(calls[1]!.body).toEqual({ from: 0, to: 2 })
+
+    await api.renamePhase('p1', 'topic', '选题A')
+    expect(calls[2]!.url).toBe('/api/xiashuo/projects/p1/workflow/phases/topic/rename')
+    expect(calls[2]!.body).toEqual({ name: '选题A' })
+
+    await api.updatePhase('p1', 'topic', { gate: 'checklist', optional: true })
+    expect(calls[3]!.url).toBe('/api/xiashuo/projects/p1/workflow/phases/topic/update')
+    expect(calls[3]!.body).toEqual({ gate: 'checklist', optional: true })
+
+    await api.deletePhase('p1', 'topic')
+    expect(calls[4]!.url).toBe('/api/xiashuo/projects/p1/workflow/phases/topic/delete')
+  })
+
+  it('listTemplates 拼 kind/scope 查询串', async () => {
+    const { calls, api } = spy()
+    await api.listTemplates('course', 'user')
+    const u = new URL(calls[0]!.url, 'http://x')
+    expect(u.pathname).toBe('/api/xiashuo/workflows')
+    expect(u.searchParams.get('kind')).toBe('course')
+    expect(u.searchParams.get('scope')).toBe('user')
+  })
+
+  it('saveAsTemplate POST /workflows 带 projectId/kind', async () => {
+    const { calls, api } = spy()
+    await api.saveAsTemplate({ name: '我的流程', projectId: 'p1', kind: 'course' })
+    expect(calls[0]!.url).toBe('/api/xiashuo/workflows')
+    expect(calls[0]!.method).toBe('POST')
+    expect(calls[0]!.body).toEqual({ name: '我的流程', projectId: 'p1', kind: 'course' })
+  })
+
+  it('getTemplate / updateTemplate / deleteTemplate 路径与动作', async () => {
+    const { calls, api } = spy()
+    await api.getTemplate('wftpl-x')
+    expect(calls[0]!.url).toBe('/api/xiashuo/workflows/wftpl-x')
+    expect(calls[0]!.method).toBe('GET')
+
+    await api.updateTemplate('wftpl-x', { name: '改名' })
+    expect(calls[1]!.url).toBe('/api/xiashuo/workflows/wftpl-x')
+    expect(calls[1]!.method).toBe('PATCH')
+    expect(calls[1]!.body).toEqual({ name: '改名' })
+
+    await api.deleteTemplate('wftpl-x')
+    expect(calls[2]!.url).toBe('/api/xiashuo/workflows/wftpl-x')
+    expect(calls[2]!.method).toBe('DELETE')
+  })
+})

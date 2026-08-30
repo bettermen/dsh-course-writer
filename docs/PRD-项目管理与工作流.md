@@ -330,7 +330,7 @@ interface Project {
 > 因为 API 层要返回这两个字段，先做模型才谈得上接口。
 > 现状：`status` 走**读时归一**（老 `book.json` 零重写，见 `core/novel/status.ts`），
 > `index.json` 仍缺（列表每次遍历 `projects/` 全目录，项目数上百后再补不迟）。
-| **P4 首页 UI** | 项目网格/列表、卡片、搜索筛选排序、新建/编辑/删除弹窗、空态、面包屑 | `src/client/home.tsx` + 布局路由切换 | typecheck + 手动冒烟（本机 DSH） |
+| **P4 首页 UI**（✅ 已完成） | 项目网格/列表、卡片、搜索筛选排序、新建/编辑/删除弹窗、空态、面包屑 | `src/client/home.tsx` + `api.ts` + `format.ts` + 布局路由切换 | typecheck + 手动冒烟（本机 DSH） |
 | **P5 流程编辑器 UI** | 阶段拖拽排序、增删改名、属性面板、恢复默认、另存为模板、模板管理 | `src/client/workflow-editor.tsx` | typecheck + 手动冒烟 |
 | **P6 Agent 侧** | `course_workflow` / `course_project_update` / `course_project_delete` 工具、`course_create_project` 扩参、SKILL.md 改造 | `src/tools/*` + `assets/skills/*` | 单测 + 对话实测（"帮我加一个阶段"） |
 | **P7 收尾** | i18n 补全（zh/en）、README 更新、版本号 0.8.0、构建 + 同步本机 DSH + 打 tag | — | `npm run verify` 全绿 |

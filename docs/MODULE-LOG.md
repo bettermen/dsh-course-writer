@@ -884,3 +884,42 @@
 5. ✅ 向后兼容：`/import` 不传 `kind` 时行为与旧版完全一致；新增接口全部是新路径
 6. ⚠️ 已知弱点：`GET /projects` 每次遍历 `projects/` 全目录，项目数上百后需要 `index.json`（PRD 的 P2 项，未启动）
 7. ⚠️ 待确认：PRD 把「项目模型升级」标为 P2、「API」标为 P3，实际把 P2 里首页必需的 `status`/`description` 提前并入本模块 —— 已在 PRD 标注，需用户追认
+
+---
+
+## 模块 21：首页 UI（P4 —— 项目管理首页 + 新建/编辑/删除弹窗 + 首页 ↔ 工作台接线）
+
+**日期**：2026-08-30
+
+**范围**：
+1. **`src/client/api.ts`（新，~215 行）**：`/api/xiashuo` 客户端 API 面。`createXiashuoApi(base, fenceHeader, fetchImpl?)` 统一请求（围栏头 + `content-type` + 解包 Result 契约），错误统一转 `ApiRequestError{code,status}`；前端 DTO（`ProjectItem/ProjectKind/WorkflowTemplate/…`）+ 纯函数 `buildQuery`/`pathOf`/`unwrap`。`fetchImpl` 可注入 → node 环境可单测。
+2. **`src/client/format.ts`（新，~85 行）**：展示纯函数（时间可注入）：`formatWords`（万/k）、`progressPercent`（0-100 夹取）、`formatDate`、`relativeTime`（刚刚/N 分钟前/…/超 7 天回退日期/未来时间回退日期）、`statusLabel`/`statusTone`（复用 `core/novel/status.ts` 的 `STATUS_META`）、`kindLabelOf`（zh/en 回退）。
+3. **`src/client/home.tsx`（新，~640 行）**：首页主体 + 三弹窗。
+   - `Home`：顶栏（品牌名 + 副题 + 项目计数 + 新建）、工具条（搜索防抖 200ms + 类型 chip + 状态 chip（含虚拟 `active`）+ 排序 select + 升降序 + 卡片/列表切换）、内容区（加载/错误/空态/卡片网格/列表行）。筛选排序**交给后端** `GET /projects?kind=&status=&q=&sort=&order=`。
+   - `CreateModal`：名称 + 类型卡（2 列、选中蓝描边）+ 题材联动 + 简介 + 工作流模板下拉（按类型重载，缺省走类型默认）。
+   - `EditModal`：名称/简介/状态（五态）/题材/**类型**（仅 `chapterCount===0` 可改，否则 `changeKindBlocked`；可改时二次确认 `confirmResetLabel` 复选框）。
+   - `DeleteModal`：保留稿件 / 同时删除 二选一（带风险说明）。
+   - 卡片右键菜单：打开 / 编辑 / 创建副本 / 归档|取消归档 / 删除。卡片与列表行用 `role="button"` div（内嵌 `⋯` 按钮，避免 button 嵌套）。
+   - `mountHome(options)` → `{ toggle, open, close, dispose }`（全屏层自包含，复用 `useAppleScheme` + `injectAppleStyles`）。
+4. **`src/client/apple-ui.ts`**：追加 ~300 行 P4 样式（`.cw-home*`、`.cw-pcard*`、`.cw-prow*`、`.cw-badge.is-*`、`.cw-prog*`、`.cw-empty`、`.cw-kind-grid/card`、`.cw-field`、`.cw-modal-actions`、`.cw-danger-note`、`.cw-crumb`、`.cw-toast` + `@keyframes cw-toast-in`）。
+5. **`src/client/i18n.ts`**：追加 ~50 键（zh/en 对齐）+ 插值 getter `tf(key, ...args)`（`%s/%d` 顺序替换，参数不足保持原样不抛错）。
+6. **`src/client/workshop-layout.tsx`**：`Options` 增 `initialProjectId` + `onBackHome`；首载优先选中 `initialProjectId`；顶栏加「返回首页」面包屑（`.cw-crumb`）；`mountWorkshopLayout` 返回 `{ toggle, open(id?), dispose }`，`open` 可带预选项目。
+7. **`src/client/index.ts`**：侧边栏入口改开**首页**；首页 `onOpenProject` → 关首页 + `workshop.open(id)`；工作台 `onBackHome` → 关工作台 + `home.open()`；`uiHidden` 摸鱼模式逻辑保持不变（入口的增删不受影响）。
+
+**验收证据**：
+- `npm run typecheck` 0 错误（host + client 双段）
+- `npm run build` 成功：`lib/client.js` 1.26 MB → **1.32 MB**（含首页），`lib/client.js.map` 2.44 MB
+- 新增 `tests/client-api.spec.ts`（**20 例**）：`buildQuery`/`pathOf`/`unwrap`/`createXiashuoApi`（URL 拼装 + 围栏头 + POST 体 + keepFiles 查询 + 错误解包 + 非 JSON 兜底）+ `format.ts` 全函数
+- 分批回归（本机 `npm test` OOM exit 137，需按文件分批 `--pool=forks --maxWorkers=1`）：`client-api`(20) + `project-query`(24) + `kinds-store` + `workflow-store`（71 例）；`workflow-templates`/`novel-store`/`novel-service`；`importer`(29) + `guide`(10) + `routes`(12)（51 例）；`routes-api`(33) + `workflow-dynamic`(15) + `workflow`(17)（65 例）—— 历史脆弱项与 P2/P4 相关**全绿**，核心层零改动故无回归
+
+**Code Review 结论（通过 ✅）**：
+1. ✅ 可测性策略落地：URL 拼装/查询串/解包/展示格式化抽纯函数，React 组件本身只靠 typecheck + build + 手动冒烟（node 环境无 jsdom，与既有约定一致）
+2. ✅ 单一数据源：筛选排序走后端查询而非前端二次过滤，与 P2 的 `parseProjectQuery`/`queryProjects` 对齐
+3. ✅ 首页/工作台解耦：各自独立全屏层，通过 `onOpenProject`/`onBackHome` 回调衔接，无全局状态耦合；`mountHome`/`mountWorkshopLayout` 均幂等 + 可销毁
+4. ✅ 安全延续：所有写操作走 `createXiashuoApi`（自动加 `x-xiashuo: 1` 围栏头），无裸 fetch
+5. ✅ 交互细节：卡片用 div + `role="button"` + 键盘 Enter/Space，避免 button 嵌套；类型变更二次确认；删除默认「保留稿件」更安全
+6. ⚠️ 已知弱点：首页搜索为「输入即查 + 200ms 防抖」，大数据量下仍每屏触发一次请求（后端 `GET /projects` 全目录遍历，见模块 20 遗留项 6，`index.json` 未启动）
+
+**遗留事项**：
+- [ ] P5 流程编辑器 UI（`src/client/workflow-editor.tsx`）—— 工作台左栏「流程」页，尚未启动
+- [ ] 首页冒烟验证依赖用户重启本机 DSH 客户端（`scripts/sync-local.sh` 已同步，重启后侧边栏入口即开首页）

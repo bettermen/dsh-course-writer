@@ -132,9 +132,16 @@ function GraphSvg({ graph }: { graph: Graph }): React.ReactElement {
   )
 }
 
-interface Options { api: string; fenceHeader: string }
+interface Options {
+  api: string
+  fenceHeader: string
+  /** 打开时预选中的项目 id（从首页进入工作台时回填）。 */
+  initialProjectId?: string
+  /** 返回首页回调（面包屑「返回首页」）。 */
+  onBackHome?: () => void
+}
 
-export function WorkshopLayout({ api: base, fenceHeader, onClose }: Options & { onClose: () => void }): React.ReactElement {
+export function WorkshopLayout({ api: base, fenceHeader, initialProjectId, onBackHome, onClose }: Options & { onClose: () => void }): React.ReactElement {
   const [projects, setProjects] = useState<ProjectSummary[]>([])
   const [selected, setSelected] = useState('')
   const [book, setBook] = useState<BookDetail | null>(null)
@@ -182,7 +189,10 @@ export function WorkshopLayout({ api: base, fenceHeader, onClose }: Options & { 
       const list = (j?.value ?? j ?? []) as ProjectSummary[]
       setProjects(list)
       setLoading(false)
-      if (list.length > 0) void select(list[0]!.id)
+      if (list.length > 0) {
+        const preferred = initialProjectId && list.some((p) => p.id === initialProjectId) ? initialProjectId : list[0]!.id
+        void select(preferred)
+      }
     }).catch(() => { setError(t('loadFail')); setLoading(false) })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -591,6 +601,12 @@ export function WorkshopLayout({ api: base, fenceHeader, onClose }: Options & { 
   return (
     <div className="cw-root" data-theme={scheme} style={rootStyle}>
       <div className="cw-glass" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 16px', borderBottom: '0.5px solid var(--cw-separator)' }}>
+        {onBackHome && (
+          <button className="cw-crumb" onClick={onBackHome} title={t('breadcrumbHome')}>
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M7.5 2.5 4 6l3.5 3.5" /></svg>
+            {t('breadcrumbHome')}
+          </button>
+        )}
         <span style={{ fontWeight: 600, fontSize: 15 }}>{t('appName')}</span>
         <select value={selected} onChange={(e) => void select(e.target.value)} className="cw-input" style={{ width: 'auto', minWidth: 150 }}>
           {projects.map((p) => <option key={p.id} value={p.id}>{p.title}</option>)}
@@ -945,23 +961,25 @@ export function WorkshopLayout({ api: base, fenceHeader, onClose }: Options & { 
   )
 }
 
-export function mountWorkshopLayout(options: Options): { toggle: () => void; dispose: () => void } {
+export function mountWorkshopLayout(options: Options): { toggle: () => void; open: (projectId?: string) => void; dispose: () => void } {
   let host: HTMLDivElement | null = null
   let root: Root | null = null
   let open = false
+  let initialId = options.initialProjectId
   const close = (): void => {
     if (root) { root.unmount(); root = null }
     if (host) { host.remove(); host = null }
     open = false
   }
-  const openPanel = (): void => {
+  const openPanel = (projectId?: string): void => {
     close()
+    if (projectId !== undefined) initialId = projectId
     host = document.createElement('div')
     host.style.cssText = 'position:fixed;inset:0;z-index:99998;pointer-events:none;'
     document.body.appendChild(host)
     root = createRoot(host)
-    root.render(<WorkshopLayout {...options} onClose={close} />)
+    root.render(<WorkshopLayout {...options} initialProjectId={initialId} onClose={close} />)
     open = true
   }
-  return { toggle: () => (open ? close() : openPanel()), dispose: close }
+  return { toggle: () => (open ? close() : openPanel()), open: (id) => openPanel(id), dispose: close }
 }

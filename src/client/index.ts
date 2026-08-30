@@ -11,6 +11,7 @@ import type {} from '@deepseek-ai/dsh-client-ui-slots'
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import { NovelSettingsCard } from './settings-card.tsx'
 import { mountWorkshopLayout } from './workshop-layout.tsx'
+import { mountHome } from './home.tsx'
 import { mountSidebarEntry } from './sidebar.ts'
 import { readUiHidden, subscribeUiHidden, UI_HIDDEN_KEY } from './ui-hidden.ts'
 
@@ -52,13 +53,37 @@ export function apply(ctx: ClientContext): void {
     } as never, () => React.createElement(NovelSettingsCard, { scope })),
   ), '@dsh-external/xiashuo: settings card')
 
-  // 侧边栏入口 + 三栏工作台（DOM 级，自愈注入）
+  // 侧边栏入口 + 首页（项目管理）+ 三栏工作台（DOM 级，自愈注入）
   // 摸鱼模式：uiHidden（localStorage）true 时隐藏入口，切换即时生效、不依赖 host settings 可达性
-  let workshop: { toggle: () => void; dispose: () => void } | null = null
+  let home: { toggle: () => void; open: () => void; close: () => void; dispose: () => void } | null = null
+  let workshop: { toggle: () => void; open: (id?: string) => void; dispose: () => void } | null = null
   let sidebarDisposer: (() => void) | null = null
 
-  const ensureWorkshop = (): { toggle: () => void; dispose: () => void } => {
-    if (!workshop) workshop = mountWorkshopLayout({ api: '/api/xiashuo', fenceHeader: 'x-xiashuo' })
+  const ensureHome = (): { toggle: () => void; open: () => void; close: () => void; dispose: () => void } => {
+    if (!home) {
+      home = mountHome({
+        api: '/api/xiashuo',
+        fenceHeader: 'x-xiashuo',
+        onOpenProject: (id) => {
+          home?.close()
+          ensureWorkshop().open(id)
+        },
+      })
+    }
+    return home
+  }
+
+  const ensureWorkshop = (): { toggle: () => void; open: (id?: string) => void; dispose: () => void } => {
+    if (!workshop) {
+      workshop = mountWorkshopLayout({
+        api: '/api/xiashuo',
+        fenceHeader: 'x-xiashuo',
+        onBackHome: () => {
+          workshop?.dispose()
+          ensureHome().open()
+        },
+      })
+    }
     return workshop
   }
 
@@ -69,9 +94,9 @@ export function apply(ctx: ClientContext): void {
       sidebarDisposer = null
     } else if (!sidebarDisposer) {
       sidebarDisposer = mountSidebarEntry(() => {
-        ensureWorkshop().toggle()
+        ensureHome().toggle()
       }, () => {
-        ensureWorkshop()
+        ensureHome()
       })
     }
   }
@@ -92,6 +117,8 @@ export function apply(ctx: ClientContext): void {
     unsubScope()
     sidebarDisposer?.()
     sidebarDisposer = null
+    home?.dispose()
+    home = null
     workshop?.dispose()
     workshop = null
   }, '@dsh-external/xiashuo: sidebar + drawer')

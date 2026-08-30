@@ -6,9 +6,12 @@
  * 不包含会话驱动（P1-F2 ChapterWriter 单独实现）。
  */
 import type { AuditEvent, PhaseId, PhaseLedger } from '../workflow/types.ts'
-import { PHASE_ORDER, enter, forceApprove, reopen, rollback, skip, submit } from '../workflow/engine.ts'
+import type { EngineContext } from '../workflow/engine.ts'
+import { enter, forceApprove, reopen, rollback, skip, submit } from '../workflow/engine.ts'
 import type { PhaseReport } from '../workflow/types.ts'
-import type { Book, BookConfig, BookSummary, Chapter } from './types.ts'
+import { instantiateWorkflow, phaseOrderOf } from '../workflow/schema.ts'
+import type { Workflow } from '../workflow/schema.ts'
+import type { Book, BookConfig, BookSummary, Chapter, KindId } from './types.ts'
 import type { NovelStore } from './store.ts'
 import { checkWordTarget, countChapter } from '../stats/wordcount.ts'
 import type { VariableStoreFile } from '../variables/store.ts'
@@ -39,8 +42,31 @@ export class NovelService {
 
   // ── 项目 ──
 
-  async createProject(title: string, genre: string): Promise<Book> {
-    return await this.store.createBook({ title, genre })
+  /** 新建项目。kind 缺省时按默认类型（course）处理。 */
+  async createProject(title: string, genre: string, kind?: KindId): Promise<Book> {
+    return await this.store.createBook({ title, genre, kind })
+  }
+
+  // ── 工作流（P1 动态化） ──
+
+  /** 项目工作流（无 workflow.json 时按类型惰性生成并落盘）。 */
+  workflowOf(bookId: string): Promise<Workflow> {
+    return this.store.readWorkflow(bookId)
+  }
+
+  /** 项目阶段 id 顺序（引擎判定前后关系的唯一依据）。 */
+  async phaseOrder(bookId: string): Promise<string[]> {
+    return phaseOrderOf(await this.store.readWorkflow(bookId))
+  }
+
+  /** 保存工作流（结构非法时抛错，不落盘）。供流程编辑器调用。 */
+  saveWorkflow(bookId: string, workflow: Workflow): Promise<Workflow> {
+    return this.store.writeWorkflow(bookId, workflow)
+  }
+
+  /** 引擎上下文：把项目阶段顺序注入引擎（缺省回退旧九阶段）。 */
+  async engineContext(bookId: string): Promise<EngineContext> {
+    return { order: await this.phaseOrder(bookId) }
   }
 
   /** 读阶段产物（docs/<phase>.md）；无产物返回 undefined。 */
@@ -53,17 +79,23 @@ export class NovelService {
    *  复制 config（字数目标/风格视角/禁用词/AI味词）+ 已完成的阶段设定文档
    *  （选题/设定/人设/大纲/单元/教案）；**讲义不复制**（chapters/）。状态机重置。
    */
-  async cloneProject(sourceId: string, options: { title?: string; genre?: string } = {}): Promise<Book> {
+  async cloneProject(sourceId: string, options: { title?: string; genre?: string; kind?: KindId } = {}): Promise<Book> {
     const source = await this.store.loadBook(sourceId)
     const title = String(options.title ?? '').trim() || `${source.title}（模板）`
     const genre = String(options.genre ?? '').trim() || source.genre
-    const book = await this.store.createBook({ title, genre })
+    const kind = String(options.kind ?? '').trim() || source.kind
+    const book = await this.store.createBook({ title, genre, kind })
     // 保留源的字数目标/风格/禁用词/AI味词；title/genre 更新为新项目
     const config: BookConfig = { ...source.config, title, genre, phaseGating: true }
     await this.store.saveBook({ ...book, config })
+    // 保留源项目定制过的工作流（改为新项目的私有副本），而不是类型的默认模板
+    const sourceWorkflow = await this.store.readWorkflow(sourceId)
+    await this.store.writeWorkflow(book.id, instantiateWorkflow(sourceWorkflow, { id: `wf_${book.id}`, kind }))
     // 复制已完成阶段的设定文档（讲义、结课、修订阶段不复制）
-    for (const phase of PHASE_ORDER) {
-      if (phase === 'writing' || phase === 'revision' || phase === 'done') continue
+    const order = phaseOrderOf(sourceWorkflow)
+    const terminal = order[order.length - 1]
+    for (const phase of order) {
+      if (phase === 'writing' || phase === 'revision' || phase === terminal) continue
       const artifact = await this.store.readArtifact(sourceId, phase)
       if (artifact) await this.store.writeArtifact(book.id, phase, artifact)
     }
@@ -95,11 +127,12 @@ export class NovelService {
     }
   }
 
-  /** 进入阶段（门禁检查；审计 enter）。 */
+  /** 进入阶段（按项目工作流顺序做门禁检查；审计 enter）。 */
   async enterPhase(bookId: string, phaseId: PhaseId, actor: AuditEvent['actor'] = 'agent'): Promise<Book> {
     const book = await this.store.loadBook(bookId)
+    const ctx = await this.engineContext(bookId)
     const now = new Date().toISOString()
-    const result = enter(book, phaseId, now, actor)
+    const result = enter(book, phaseId, now, actor, ctx)
     if (!result.ok) throw result.error
     await this.store.appendAudit(bookId, result.value.event)
     await this.store.saveBook(this.mergeLedger(book, result.value.ledger, now))
@@ -121,6 +154,7 @@ export class NovelService {
   /** 用户覆盖：force（放行）/ reopen（驳回）/ skip（跳过）/ rollback（回退）。 */
   async overridePhase(bookId: string, phaseId: PhaseId, action: 'force' | 'reopen' | 'skip' | 'rollback', actor: AuditEvent['actor'] = 'user'): Promise<Book> {
     const book = await this.store.loadBook(bookId)
+    const ctx = await this.engineContext(bookId)
     const now = new Date().toISOString()
     const result = action === 'force'
       ? forceApprove(book, phaseId, now, actor)
@@ -128,7 +162,7 @@ export class NovelService {
         ? reopen(book, phaseId, now, actor)
         : action === 'skip'
           ? skip(book, phaseId, now, actor)
-          : rollback(book, phaseId, now, actor)
+          : rollback(book, phaseId, now, actor, ctx)
     if (!result.ok) throw result.error
     await this.store.appendAudit(bookId, result.value.event)
     await this.store.saveBook(this.mergeLedger(book, result.value.ledger, now))

@@ -3,6 +3,9 @@ import { NovelAssembly } from '../src/assembly.ts'
 import type { LoreService } from '../src/core/lorebook/index.ts'
 import type { NovelService } from '../src/core/novel/index.ts'
 
+/** 当前注册的工具总数（lorebook 13 + novel 10 + extras 9 + quality 5 + quiz 3 + guide 2 + skill 1 + stats 1）。 */
+const TOOL_COUNT = 44
+
 /** 最小 ctx：tools.register 计数 + 返回 disposer。 */
 function mockCtx() {
   const disposers: Array<() => void> = []
@@ -43,8 +46,8 @@ describe('NovelAssembly — settings gate', () => {
     assembly.sync(true, '/data')
     expect(assembly.active).toBe(true)
     expect(created).toEqual(['/data'])
-    // 41 个工具（lorebook 13 + novel 11 + extras 9 + quality 5 + guide 2 + prompts 1 + wordcount 1；含克隆/账本/市场调研/创建）
-    expect(disposers).toHaveLength(41)
+    // 44 个工具（lorebook 13 + novel 10 + extras 9 + quality 5 + quiz 3 + guide 2 + skill 1 + stats 1）
+    expect(disposers).toHaveLength(TOOL_COUNT)
   })
 
   it('is idempotent while enabled with the same dir', () => {
@@ -54,7 +57,7 @@ describe('NovelAssembly — settings gate', () => {
     assembly.sync(true, '/a')
     assembly.sync(true, '/a')
     expect(created).toHaveLength(1)
-    expect(disposers).toHaveLength(41)
+    expect(disposers).toHaveLength(TOOL_COUNT)
   })
 
   it('unregisters when disabled and can re-enable', () => {
@@ -66,7 +69,7 @@ describe('NovelAssembly — settings gate', () => {
     expect(assembly.active).toBe(false)
     assembly.sync(true, '/a')
     expect(created).toHaveLength(2)
-    expect(disposers).toHaveLength(82)
+    expect(disposers).toHaveLength(TOOL_COUNT * 2)
   })
 
   it('rebuilds when the directory changes while enabled', () => {

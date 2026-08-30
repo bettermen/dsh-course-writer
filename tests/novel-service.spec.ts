@@ -6,6 +6,15 @@ import { NovelService, NovelStore } from '../src/core/novel/index.ts'
 import { LoreStore } from '../src/core/lorebook/index.ts'
 import { VariableStoreFile, variablesFilePath } from '../src/core/variables/index.ts'
 import type { PluginError } from '../src/core/index.ts'
+import type { PhaseRecord } from '../src/core/workflow/index.ts'
+
+/** 取阶段记录：noUncheckedIndexedAccess 下 phases[id] 可能为 undefined，判空集中在此。 */
+function at(owner: { phases: Record<string, PhaseRecord | undefined> }, id: string): PhaseRecord {
+  const record = owner.phases[id]
+  if (!record) throw new Error(`阶段记录缺失: ${id}`)
+  return record
+}
+
 
 const roots: string[] = []
 async function freshService(): Promise<{ service: NovelService; store: NovelStore }> {
@@ -38,7 +47,7 @@ describe('NovelService — project and phases', () => {
     expect((await catchError(service.enterPhase(book.id, 'setting'))).code).toBe('INVALID_STATE')
     await service.enterPhase(book.id, 'topic')
     const after = await service.commitPhase(book.id, 'topic', '选题报告', { passed: true, errorCount: 0, warningCount: 0 })
-    expect(after.phases.topic.state).toBe('approved')
+    expect(at(after, 'topic').state).toBe('approved')
     // 回归（C1）：阶段流转不得丢 book 字段（曾把 PhaseLedger 残缺对象整存覆盖 book.json）
     expect(after.title).toBe('青云问道')
     expect(after.genre).toBe('fantasy')
@@ -48,11 +57,11 @@ describe('NovelService — project and phases', () => {
     const reloaded = await service.load(book.id)
     expect(reloaded.title).toBe('青云问道')
     expect(reloaded.config.title).toBe('青云问道')
-    expect(reloaded.phases.topic.state).toBe('approved')
+    expect(at(reloaded, 'topic').state).toBe('approved')
     // 现在可以进 setting
     await service.enterPhase(book.id, 'setting')
     const setting = await service.commitPhase(book.id, 'setting', '设定文档', { passed: true, errorCount: 0, warningCount: 0 })
-    expect(setting.phases.setting.state).toBe('approved')
+    expect(at(setting, 'setting').state).toBe('approved')
     expect(setting.currentPhase).toBe('setting')
     expect(setting.title).toBe('青云问道')
     expect(setting.config.title).toBe('青云问道')
@@ -63,9 +72,9 @@ describe('NovelService — project and phases', () => {
     const book = await service.createProject('A', 'x')
     await service.enterPhase(book.id, 'topic')
     const review = await service.commitPhase(book.id, 'topic', '有问题的产物', { passed: false, errorCount: 2, warningCount: 1 })
-    expect(review.phases.topic.state).toBe('review')
+    expect(at(review, 'topic').state).toBe('review')
     const forced = await service.overridePhase(book.id, 'topic', 'force')
-    expect(forced.phases.topic.state).toBe('approved')
+    expect(at(forced, 'topic').state).toBe('approved')
   })
 
   it('records audit events for every operation', async () => {
@@ -270,7 +279,7 @@ describe('NovelService — 模板复制（§3.5-11 cloneProject）', () => {
     expect(clone.id).not.toBe(source.id)
     expect(clone.title).toBe('青云问道（模板）')
     expect(clone.genre).toBe('xianxia')
-    expect(clone.phases.topic.state).toBe('locked')
+    expect(at(clone, 'topic').state).toBe('locked')
     expect(clone.stats).toMatchObject({ chapterCount: 0, totalWords: 0 })
     // config 复制（字数目标/风格保留）
     expect(clone.config.genre).toBe('xianxia')

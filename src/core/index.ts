@@ -6,4 +6,5 @@
 export * from './types.ts'
 export * from './util.ts'
 export * from './genres.ts'
+export * from './kinds.ts'
 export * from './importer/index.ts'

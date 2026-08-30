@@ -189,12 +189,13 @@ describe('importer/parse — 兜底与边界', () => {
     expect(error?.code).toBe('IMPORT_FILE_EMPTY')
   })
 
-  it('mapGenre 别名映射', () => {
-    expect(mapGenre('仙侠')).toBe('xianxia')
-    expect(mapGenre('玄幻')).toBe('fantasy')
-    expect(mapGenre('SCIFI')).toBe('scifi')
-    expect(mapGenre('未知')).toBe('fantasy')
-    expect(mapGenre('')).toBe('fantasy')
+  it('mapGenre 别名映射（学科口径；未知回退 general）', () => {
+    expect(mapGenre('语文')).toBe('chinese')
+    expect(mapGenre('计算机')).toBe('programming')
+    expect(mapGenre('公务员')).toBe('civil-service')
+    expect(mapGenre('PROGRAMMING')).toBe('programming')
+    expect(mapGenre('未知')).toBe('general')
+    expect(mapGenre('')).toBe('general')
   })
 
   it('chunkParagraphs 空输入返回空数组', () => {

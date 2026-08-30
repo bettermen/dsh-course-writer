@@ -4,20 +4,28 @@
  * 目录布局（DEVELOPMENT-PLAN §6.1 对齐）：
  *   <baseDir>/<bookId>/
  *     book.json            # VersionedFile 外壳（schemaVersion + Book）
+ *     workflow.json        # 项目私有工作流（P1；缺省时按 kind 惰性生成）
  *     audit.jsonl          # 审计事件（append-only，seq=行号）
  *     docs/<phase>.md      # 阶段产物（topic/setting/...）
  *     versions/<phase>/v<n>.md   # 产物版本快照（每次写 artifact +1）
  *     chapters/ch<no>.md   # 讲义（首行 HTML 注释内嵌课时元数据 JSON）
  * 设计要点：原子写（atomic-file）、bookId 路径安全校验、课时 frontmatter
  * 容错解析（缺字段默认值、未知字段保留）、旧格式自动迁移。
+ *
+ * P1：工作流动态化 —— 阶段顺序不再由常量固定，项目私有流程存 workflow.json；
+ * 旧项目（无此文件）首次读取时按 book.kind（缺省 course）惰性生成并落盘。
  */
 import { join } from 'node:path'
 import { mkdir, readdir, readFile, rm } from 'node:fs/promises'
 import { appendLine, atomicWriteFile, readOptional } from '../atomic-file.ts'
 import { newId, nowIso } from '../util.ts'
-import { createLedger, PHASE_ORDER } from '../workflow/engine.ts'
+import { createLedger, DEFAULT_PHASE_ORDER } from '../workflow/engine.ts'
+import { instantiateWorkflow, phaseOrderOf, validateWorkflow } from '../workflow/schema.ts'
+import { builtinTemplateOf } from '../workflow/templates.ts'
+import { DEFAULT_KIND_ID } from '../kinds.ts'
+import type { Workflow } from '../workflow/schema.ts'
 import type { AuditEvent, PhaseId } from '../workflow/types.ts'
-import type { Book, BookConfig, BookSummary, Chapter } from './types.ts'
+import type { Book, BookConfig, BookSummary, Chapter, KindId } from './types.ts'
 
 /** 当前 book.json 格式版本。 */
 export const BOOK_SCHEMA_VERSION = 1
@@ -46,6 +54,7 @@ function toSummary(book: Book): BookSummary {
     id: book.id,
     title: book.title,
     genre: book.genre,
+    kind: book.kind ?? DEFAULT_KIND_ID,
     status: book.status,
     currentPhase: book.currentPhase,
     chapterCount: book.stats.chapterCount,
@@ -103,19 +112,34 @@ export class NovelStore {
     return join(this.bookDir(id), 'book.json')
   }
 
+  private workflowFile(id: string): string {
+    return join(this.bookDir(id), 'workflow.json')
+  }
+
   // ── 项目 ──
 
-  async createBook(params: { title: string; genre: string }): Promise<Book> {
+  /**
+   * 新建项目。
+   *
+   * @param params.kind 项目类型 id（course/official/novel/thesis/自定义）；
+   *   缺省 `DEFAULT_KIND_ID`（course）。决定初始工作流模板。
+   */
+  async createBook(params: { title: string; genre: string; kind?: KindId }): Promise<Book> {
     const id = newId('bk')
     const now = nowIso()
-    const genre = params.genre.trim() || 'fantasy'
+    const genre = params.genre.trim() || 'general'
+    const kind = String(params.kind ?? '').trim() || DEFAULT_KIND_ID
     const config = defaultConfig(genre)
     config.title = params.title.trim()
-    const ledger = createLedger(id, now)
+    // 按类型取内置模板 → 派生项目私有副本 → 用其阶段顺序初始化状态机
+    const workflow = instantiateWorkflow(builtinTemplateOf(kind), { id: `wf_${id}`, kind })
+    const order = phaseOrderOf(workflow)
+    const ledger = createLedger(id, now, { order })
     const book: Book = {
       id,
       title: params.title.trim(),
       genre,
+      kind,
       status: 'drafting',
       config,
       phases: ledger.phases,
@@ -127,8 +151,87 @@ export class NovelStore {
     }
     await mkdir(this.bookDir(id), { recursive: true, mode: 0o700 })
     await atomicWriteFile(this.bookFile(id), `${JSON.stringify({ schemaVersion: BOOK_SCHEMA_VERSION, data: book }, null, 2)}\n`)
-    await appendLine(join(this.bookDir(id), 'audit.jsonl'), `${JSON.stringify({ seq: 1, at: now, action: 'create', phase: 'topic', actor: 'user', detail: 'project created' })}`)
+    await this.writeWorkflow(id, workflow)
+    const firstPhase = order[0] ?? DEFAULT_PHASE_ORDER[0]!
+    await appendLine(join(this.bookDir(id), 'audit.jsonl'), `${JSON.stringify({ seq: 1, at: now, action: 'create', phase: firstPhase, actor: 'user', detail: `project created (kind=${kind})` })}`)
     return book
+  }
+
+  // ── 工作流（workflow.json） ──
+
+  /**
+   * 读项目工作流；**文件不存在时按项目类型惰性生成并落盘**（旧项目自动迁移）。
+   *
+   * 文件存在但结构非法 → 抛 PluginError（不静默回退，避免掩盖数据损坏）。
+   */
+  async readWorkflow(bookId: string): Promise<Workflow> {
+    const text = await readOptional(this.workflowFile(bookId))
+    if (text !== undefined) {
+      let parsed: unknown
+      try {
+        parsed = JSON.parse(text)
+      } catch {
+        throw { code: 'INVALID_FIELD_TYPE', message: `workflow.json 损坏（非法 JSON）: ${bookId}` } as never
+      }
+      const validated = validateWorkflow(parsed)
+      if (!validated.ok) {
+        throw { ...validated.error, message: `workflow.json 结构非法（${bookId}）: ${validated.error.message}` } as never
+      }
+      return validated.value
+    }
+    // 惰性迁移：老项目没有 workflow.json —— 按类型模板补一份
+    return await this.writeWorkflow(bookId, instantiateWorkflow(builtinTemplateOf(await this.readBookKind(bookId)), {
+      id: `wf_${bookId}`,
+      kind: await this.readBookKind(bookId),
+    }))
+  }
+
+  /** 写项目工作流（结构非法时拒绝落盘）。 */
+  async writeWorkflow(bookId: string, workflow: Workflow): Promise<Workflow> {
+    const validated = validateWorkflow(workflow)
+    if (!validated.ok) throw { ...validated.error, message: `工作流结构非法: ${validated.error.message}` } as never
+    await mkdir(this.bookDir(bookId), { recursive: true, mode: 0o700 })
+    await atomicWriteFile(this.workflowFile(bookId), `${JSON.stringify(validated.value, null, 2)}\n`)
+    return validated.value
+  }
+
+  /** 项目阶段顺序（工作流优先；无工作流时回退默认九阶段）。 */
+  async phaseOrder(bookId: string): Promise<string[]> {
+    return phaseOrderOf(await this.readWorkflow(bookId))
+  }
+
+  /**
+   * 只读取 book.json 的 kind 字段（不触发工作流迁移，避免 loadBook ↔ readWorkflow 互调）。
+   * 文件缺失/损坏时回退 DEFAULT_KIND_ID。
+   */
+  private async readBookKind(bookId: string): Promise<KindId> {
+    const text = await readOptional(this.bookFile(bookId))
+    if (text === undefined) return DEFAULT_KIND_ID
+    try {
+      const parsed = JSON.parse(text) as { data?: { kind?: unknown }; kind?: unknown }
+      const raw = parsed?.data?.kind ?? parsed?.kind
+      return typeof raw === 'string' && raw.trim().length > 0 ? raw.trim() : DEFAULT_KIND_ID
+    } catch {
+      return DEFAULT_KIND_ID
+    }
+  }
+
+  /**
+   * 只读取 workflow.json 的阶段 id 列表（容错：非法时返回 undefined）。
+   * 供 loadBook 补全阶段记录使用 —— 与 readWorkflow 的严格校验分工：
+   * loadBook 宽容（损坏项目仍可列出），readWorkflow 严格（编辑流程前必须暴露问题）。
+   */
+  private async workflowPhaseIds(bookId: string): Promise<string[] | undefined> {
+    const text = await readOptional(this.workflowFile(bookId))
+    if (text === undefined) return undefined
+    try {
+      const parsed = JSON.parse(text) as { phases?: Array<{ id?: unknown }> }
+      if (!Array.isArray(parsed?.phases)) return undefined
+      const ids = parsed.phases.map((phase) => (phase && typeof phase.id === 'string' ? phase.id : '')).filter((id) => id.length > 0)
+      return ids.length > 0 ? ids : undefined
+    } catch {
+      return undefined
+    }
   }
 
   /** 加载项目；旧格式（裸 Book 对象）自动包装迁移。损坏/非法 JSON 抛 PluginError（可报告）。 */
@@ -147,12 +250,15 @@ export class NovelStore {
     if (!raw || typeof raw.id !== 'string' || !raw.phases || typeof raw.config !== 'object' || typeof raw.stats !== 'object') {
       throw { code: 'INVALID_FIELD_TYPE', message: `book.json 形状非法: ${id}` } as never
     }
-    // 迁移：缺失阶段记录补全为 locked
+    // 迁移 1：P1 之前的项目没有 kind 字段 —— 一律归属默认类型（course）
+    const kind = typeof raw.kind === 'string' && raw.kind.trim().length > 0 ? raw.kind.trim() : DEFAULT_KIND_ID
+    // 迁移 2：缺失阶段记录补全为 locked。顺序优先取项目工作流，无工作流时回退旧九阶段
+    const order = (await this.workflowPhaseIds(id)) ?? DEFAULT_PHASE_ORDER
     const phases = { ...raw.phases }
-    for (const phaseId of PHASE_ORDER) {
+    for (const phaseId of order) {
       if (!phases[phaseId]) phases[phaseId] = { id: phaseId, state: 'locked', version: 0 }
     }
-    return { ...raw, phases, schemaVersion: BOOK_SCHEMA_VERSION }
+    return { ...raw, kind, phases, schemaVersion: BOOK_SCHEMA_VERSION }
   }
 
   async saveBook(book: Book): Promise<void> {
@@ -185,6 +291,7 @@ export class NovelStore {
     if (keepChapters) {
       // 保留 chapters/，删除其余元数据文件
       await rm(this.bookFile(id), { force: true })
+      await rm(this.workflowFile(id), { force: true })
       await rm(join(dir, 'docs'), { recursive: true, force: true })
       await rm(join(dir, 'versions'), { recursive: true, force: true })
       await rm(join(dir, 'summary'), { recursive: true, force: true })

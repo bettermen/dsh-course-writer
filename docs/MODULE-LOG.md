@@ -752,3 +752,85 @@
 - **原文视图热更新**（client）：DiffPreviewV 顶部原文随 `polishSuggestions` 实时渲染——已采纳段立即显示润色文并标绿（✔已采纳），新增段实时插入（＋新增），取消立即恢复。
 - 测试：diff 相关 21→**23 例**（含段落错配回归、新增段插入）；全量 303。
 **验收**：`npm run verify` 全绿（303 测试 + typecheck + build）；用户实测确认（"好多没问题了"）。
+
+## 模块 18：项目管理 + 可编辑工作流（P0 领域模型层）
+
+**日期**：2026-08-29
+**背景**：产品定位从「虾说教材写作（单一课程编写器）」升级为「创作者 AI 辅助工具」——首页为项目管理（课程/公文/小说/论文），每种类型有各自的工作流且可自由编辑。需求文档见 `docs/PRD-项目管理与工作流.md`。
+**需求确认结论**（用户拍板）：内置 4 类型（课程/公文/小说/论文）；开放用户自定义类型；流程编辑器放在工作台左栏「流程」页；分阶段交付（先 P0→P2 跑通模型层）。
+
+**范围（P0 领域模型，纯逻辑零 IO）**：
+- `src/core/workflow/schema.ts`（新）：可编辑工作流 schema。`PhaseGate`（none/manual/checklist/ai）、`ArtifactKind`（doc/chapter/lorebook/wordcount/custom）、`WorkflowPhase`、`Workflow`（scope: builtin|user|project）+ `WORKFLOW_SCHEMA_VERSION=1`。纯函数：`validateWorkflow` / `cloneWorkflow` / `phaseOrderOf` / `uniquePhaseId` / `createPhase` / `insertPhase` / `removePhase` / `renamePhase` / `updatePhase` / `reorderPhase` / `nextPhaseIn` / `prevPhaseIn`。
+  - 关键设计：阶段 id 为普通 string（不再用联合类型枚举），顺序来自 `phases` 数组而非 `PHASE_ORDER` 常量 —— 为 P1 的引擎动态化铺路。
+- `src/core/workflow/templates.ts`（新）：4 套内置模板（课程 9 / 公文 7 / 小说 9 / 论文 8 阶段）+ 通用兜底 5 阶段。**用 TS 常量而非 JSON 文件**，规避打包后 assets 路径问题，且零 IO 可单测。课程模板阶段 id 沿用旧九阶段（`topic…done`）保证老项目零迁移。每个阶段带中英文名（i18n 就绪）、说明、门禁、产物、AI 提示词；`gate='ai'` 的阶段强制带 `rubric`。
+- `src/core/kinds.ts`（新）：项目类型注册表。内置 4 种（课程沿用现有 23 学科；公文 7 文种；小说 8 题材；论文 6 学科）+ 用户自定义。纯函数：`resolveKinds` / `kindById` / `kindOrDefault` / `genresOf` / `defaultGenreOf` / `genreLabelOf` / `templateOfKind` / `createCustomKind` / `isKindId`。
+
+**顺带修复的既存问题**：
+- `mapGenre`（`src/core/importer/parse.ts`）回退值 `fantasy` 在当前学科清单里已不存在 → 改为 `general`，别名表从"小说题材"改写为"课程口语变体"（计算机→programming、公考→civil-service 等）。
+- 既有测试漂移：`tests/genres.spec.ts`（整份为小说题材时代遗留，5 例失败）重写为学科口径 + 新增类型题材联动断言；`tests/importer.spec.ts` 同步 `mapGenre` 预期；`tests/assembly.spec.ts` 硬编码 41 个工具 → 抽出 `TOOL_COUNT = 44`（lorebook 13 + novel 10 + extras 9 + quality 5 + quiz 3 + guide 2 + skill 1 + stats 1）。
+
+**验收证据**：
+- `npm run typecheck`：0 错误（host + client 双段）
+- 新增 `tests/workflow-schema.spec.ts`（18 例）、`tests/kinds.spec.ts`（14 例）全绿
+- `tests/genres.spec.ts` 14 例全绿（原 5 例失败）
+- 分批回归：`assembly 6` / `novel-store 20` / `novel-service 17` / `routes 7` / `smoke 3` / `core 12` / `lorebook* 45` / `consistency 16` / `variables 18` / `auxiliary 7` / `polish* 32` / `diagnose 8` / `revision-export 7` / `stats 9` / `context-assembler 4` / `write-prompt 2` / `validation 12` / `prompts 6` / `demo-assets 6` / `md-commands 34` / `markdown-render 20` / `client-writer 6` / `drawer-size 6` —— 全绿
+
+**遗留事项（未修，非本次范围）**：
+- `tests/importer.spec.ts` 仍有 13 例失败：章节→课时重构后，中文课时标题识别（「第一章 标题」「楔子」等）与文件名/首行课程名启发式的测试预期未同步。涉及解析器行为变更，需单独评估后修。
+- `tests/guide.spec.ts` 仍有 3 例失败：`parseIntent` 规则已改为课程指令（写教案等），测试仍用「帮我写下一章」等小说指令。
+- 注：`npm test`（全量）在本机仍会因内存被 OOM kill（exit 137），需按文件分批 `--pool=forks --maxWorkers=1` 执行。
+
+**Code Review 结论（通过 ✅）**：
+1. ✅ 分层合规：三个新文件全在 `src/core/**`，零 cordis、零 IO、零 DOM，纯数据 + 纯函数，可直接单测
+2. ✅ 错误契约：校验失败统一返回 `Result<T>` + `INVALID_FIELD_TYPE`，未静默 catch
+3. ✅ 迁移安全：课程模板阶段 id 沿用旧九阶段，老项目读取时无需改写任何数据
+4. ✅ 防呆到位：至少保留 1 阶段、阶段 id 唯一且形状受限、内置模板 id 只读判定、保留字（course/official/novel/thesis/custom）拒绝占用
+5. ✅ i18n 就绪：类型与阶段均带中英文字段，用户自定义项回退中文
+6. ⚠️ 已知弱点：阶段 id 放宽为 string 后编译期类型保护变弱 —— 需靠 P1 在引擎入口与工具参数处补运行时校验
+
+## 模块 19：工作流动态化（P1）
+
+**日期**：2026-08-30
+**背景**：P0 建立了可编辑工作流的 schema 与模板，但引擎仍从 `PHASE_ORDER` 常量读顺序、`PhaseId` 仍是 9 个字面量的联合类型 —— 动态流程实际跑不起来。P1 打通"引擎按项目工作流顺序运转 + 项目私有流程落盘"。
+
+**范围**：
+
+1. **`core/workflow/types.ts`**：`PhaseId` 由联合类型放宽为 `string`；旧九阶段抽为 `LEGACY_PHASE_IDS` 常量（仅作默认顺序与迁移用）；新增 `PhaseMap`（`Record<PhaseId, PhaseRecord>`）并写明 noUncheckedIndexedAccess 下的取值约定。
+2. **`core/workflow/engine.ts`**：全面动态化。
+   - 新增 `EngineContext { order?: readonly PhaseId[] }`，由调用方注入 `phaseOrderOf(workflow)`；缺省/空数组回退 `DEFAULT_PHASE_ORDER`（旧九阶段，向后兼容）。
+   - `PHASE_ORDER` → `DEFAULT_PHASE_ORDER`；删除静态 `PHASE_INDEX`，改为 `indexOfPhase(order, id)`。
+   - 受影响函数：`nextPhaseOf`（新增 `prevPhaseOf` / `terminalPhaseOf`）、`canEnter`、`createLedger`、`enter`、`rollback`。
+   - `submit`/`forceApprove`/`reopen`/`skip` 不依赖顺序，签名不变。
+   - 回退规则动态化：允许发起 = 终态阶段（order 末位）**或** `revision`（若流程中存在）；禁止目标 = 终态阶段 / `revision` / 不在 order 内。无 revision 的流程（如公文）也能正常回退。
+   - 新增 `recordOf(ledger, id)` 统一判空；`blankRecord(id)` 兜底 —— **流程里后加的阶段首次进入时惰性建立记录**，无需迁移数据。
+   - `clone(ledger, ctx)` 键集合 = `order ∪ 已有记录键`：既覆盖新增阶段，也保留被删阶段的历史记录（不静默丢弃，由上层决定清理）。
+3. **`core/workflow/schema.ts`**：新增 `instantiateWorkflow(template, { id, kind, name })` —— 由内置模板派生项目私有副本（scope='project' + 记录 templateId），保证改 A 项目流程不影响 B。
+4. **`core/novel/types.ts`**：`Book` 新增可选 `kind?: KindId`；`BookSummary.kind` 为必填（存储层补默认值）。
+5. **`core/novel/store.ts`**：`workflow.json` 读写 + 惰性迁移。
+   - `createBook({ title, genre, kind })`：按 kind 取内置模板 → `instantiateWorkflow` → 用其阶段顺序 `createLedger` → 落盘 book.json + workflow.json，审计首条 phase 改为动态首阶段。默认 genre 由 `fantasy`（已不存在的学科）改为 `general`。
+   - `readWorkflow(bookId)`：文件不存在 → 按 `readBookKind()`（直读 book.json，不触发迁移递归）生成并落盘；文件存在但非法 → 抛 `INVALID_FIELD_TYPE`（严格，不静默回退）。
+   - `writeWorkflow(bookId, wf)`：先 `validateWorkflow` 再落盘，非法拒绝。
+   - `phaseOrder(bookId)`：返回项目阶段顺序。
+   - `loadBook` 双迁移：① 缺 `kind` → 补 `DEFAULT_KIND_ID`；② 缺阶段记录 → 按 `workflowPhaseIds()`（容错读，非法返回 undefined → 回退默认九阶段）补全为 locked。
+   - 宽容/严格分工：`loadBook` 对损坏的 workflow.json 容错（项目仍可列出），`readWorkflow` 严格报错（编辑流程前必须暴露问题）。
+   - `deleteProject(keepChapters=true)` 一并删除 workflow.json。
+6. **`core/novel/service.ts`**：`createProject(title, genre, kind?)`；新增 `workflowOf` / `phaseOrder` / `saveWorkflow` / `engineContext`；`enterPhase` 与 `overridePhase` 注入 `ctx`；`cloneProject` 改为按源项目工作流顺序复制设定文档，并把源工作流实例化为新项目的副本（保留定制流程）。
+
+**顺带修复**：`createBook` 默认 genre `fantasy` 在当前学科清单中不存在（P0 遗留）→ 改为 `general`。
+
+**验收证据**：
+- `npm run typecheck` 0 错误（host + client 双段）；`npm run build` 成功（`lib/core/workflow/engine.js` 与 `lib/core/novel/store.js` 已含新实现）
+- 新增 `tests/workflow-dynamic.spec.ts`（15 例）：动态顺序建 ledger、省略/空 order 回退默认、相邻与终态查询、未知阶段拒绝、新增阶段惰性建记录、无 revision 流程的回退、含 revision 流程的回退、禁止回退到终态/revision/流程外、两阶段自定义流程回退、克隆保留遗留记录、模板顺序与类型匹配
+- 新增 `tests/workflow-store.spec.ts`（15 例）：新建项目按类型生成 workflow.json（课程/小说/公文/未知类型兜底）、阶段集合差异（公文无 topic/chapter）、惰性迁移（无 kind → course / 有 kind → 对应模板 / 幂等）、loadBook 补 kind 与按 workflow 顺序补全阶段、摘要带 kind、写入校验（空阶段/非法门禁/重复 id 拒绝落盘）、损坏 workflow.json 的严格 vs 宽容、删除项目清理 workflow.json
+- 分批回归全绿：`workflow 17` / `workflow-dynamic 15` / `workflow-store 15` / `workflow-schema 18` / `kinds 14` / `genres 14` / `novel-store 20` / `novel-service 17` / `routes 7` / `smoke 3` / `core 12` / `assembly 6` / `lorebook* 54` / `consistency 16` / `variables 18` / `auxiliary 7` / `polish* 32` / `diagnose 8` / `revision-export 7` / `stats 9` / `context-assembler 4` / `write-prompt 2` / `validation 12` / `prompts 6` / `demo-assets 6` / `md-commands 34` / `markdown-render 20` / `client-writer 6` / `drawer-size 6`
+
+**测试改造（P1 必需的连带修改）**：`PhaseId` 放宽为 string 后，在 `noUncheckedIndexedAccess` 下 `ledger.phases.topic` 类型变为 `PhaseRecord | undefined`。三个测试文件（`tests/workflow.spec.ts` / `novel-store.spec.ts` / `novel-service.spec.ts`）统一引入 helper `at(owner, id)` 集中判空，替换 23 处点号访问；`PHASE_ORDER` 导入改 `DEFAULT_PHASE_ORDER`。
+
+**Code Review 结论（通过 ✅）**：
+1. ✅ 零数据迁移：老项目无 workflow.json → 首次读取按 kind 生成；无 kind → course；课案模板阶段 id 沿用旧九阶段 → ledger 无需改写
+2. ✅ 无递归：`readWorkflow` 取 kind 走 `readBookKind()` 直读 book.json，`loadBook` 补全走 `workflowPhaseIds()` 容错直读，二者互不调用
+3. ✅ 不静默吞错：workflow.json 损坏在编辑路径严格抛错；仅在列表/加载路径容错
+4. ✅ 顺序唯一来源：引擎不再持有任何业务阶段名，全部来自传入 order；`LEGACY_PHASE_IDS` 只作兜底
+5. ✅ 删除阶段不丢历史：clone 保留遗留记录，避免旧产物状态被静默清空
+6. ⚠️ 已知弱点：编译期阶段名保护消失，工具层仍传字符串阶段名 —— 由引擎入口的 `canEnter` 运行时校验拦截；P3 工具层动态化时需补参数白名单校验
+7. ⚠️ 待办：`tests/importer.spec.ts` 13 例、`tests/guide.spec.ts` 3 例仍失败（P0 已记录的既存漂移，非本次范围）

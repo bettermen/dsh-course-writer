@@ -198,30 +198,38 @@ function stem(fileName: string): string {
   return cleaned || '未命名课程'
 }
 
-/** 题材归一化（frontmatter genre / 中文标签 / 常见变体 → 内置题材 id；未知回退 fantasy）。 */
+/**
+ * 题材归一化（frontmatter genre / 中文标签 / 常见变体 → 内置题材 id；未知回退 general）。
+ * 注：此处题材指「课程学科」（见 core/genres.ts）；小说/公文/论文题材见 core/kinds.ts。
+ */
 export function mapGenre(raw: string): string {
   const value = String(raw ?? '').trim().toLowerCase()
-  if (!value) return 'fantasy'
+  if (!value) return 'general'
   // 已是合法题材 id → 直通
   if (isGenreId(value)) return value
   // 中文标签（如「通识」「人文」）→ id
   const fromLabel = genreIdFromLabel(value)
   if (fromLabel) return fromLabel
-  // 常见变体别名（兼容旧版映射 + 课程口语）
+  // 常见口语变体 → 学科 id
   const aliases: Record<string, string> = {
-    '奇幻': 'fantasy', '魔法': 'western', '西幻': 'western',
-    '修真': 'xianxia', '修仙': 'xianxia',
-    '现代': 'urban', '都市语言': 'romance',
-    '现实': 'realistic', '生活': 'realistic',
-    '古代': 'history', '穿越古代': 'history', '古言': 'ancient-romance',
-    '未来': 'scifi', '星际': 'scifi', '末世': 'apocalypse', '末日': 'apocalypse', '废土': 'apocalypse',
-    '推理': 'mystery', '恐怖': 'horror', '惊悚': 'horror',
-    '网游': 'game', '电竞': 'sports', '竞技': 'sports',
-    '校园': 'campus', '职场': 'business', '商战': 'business', '权谋': 'strategy',
-    '同人': 'fanfiction', '动漫同人': 'anime',
-    '洪荒': 'honghuang', '种田': 'farming', '系统': 'system', '无限流': 'infinite', '诸天': 'multiverse',
+    '通识': 'general', '通用': 'general', '素养': 'general',
+    '人文': 'humanities', '社科': 'humanities',
+    '科普': 'science', '科学': 'science',
+    '数学': 'math', '高数': 'math', '奥数': 'math',
+    '语文': 'chinese', '国文': 'chinese', '写作': 'chinese',
+    '英语': 'english', '外文': 'english', '外语': 'english',
+    '物理': 'physics', '化学': 'chemistry', '生物': 'biology',
+    '地理': 'geography',
+    '编程': 'programming', '计算机': 'programming', '代码': 'programming', '前端': 'programming',
+    '营销': 'marketing', '市场': 'marketing',
+    '管理': 'management', '财务': 'finance', '会计': 'finance', '金融': 'finance',
+    '法律': 'law', '法务': 'law',
+    '考证': 'certification', '职业资格': 'certification',
+    '公考': 'civil-service', '公务员': 'civil-service', '编制': 'civil-service', '事业单位': 'civil-service',
+    '美术': 'art', '音乐': 'music',
+    '健康': 'health', '养生': 'health', '体育': 'sports', '健身': 'sports',
   }
-  return aliases[value] ?? 'fantasy'
+  return aliases[value] ?? 'general'
 }
 
 /** 解析课程文件（txt / md）。失败抛 PluginError（IMPORT_FILE_EMPTY / NO_IMPORTABLE_ENTRIES）。 */

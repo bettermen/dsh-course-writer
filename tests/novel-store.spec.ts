@@ -3,8 +3,16 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { NovelStore, assertBookId, encodeChapterFrontmatter, parseChapterFrontmatter } from '../src/core/novel/index.ts'
-import type { AuditEvent } from '../src/core/workflow/index.ts'
+import type { AuditEvent, PhaseRecord } from '../src/core/workflow/index.ts'
 import type { PluginError } from '../src/core/index.ts'
+
+/** 取阶段记录：noUncheckedIndexedAccess 下 phases[id] 可能为 undefined，判空集中在此。 */
+function at(owner: { phases: Record<string, PhaseRecord | undefined> }, id: string): PhaseRecord {
+  const record = owner.phases[id]
+  if (!record) throw new Error(`阶段记录缺失: ${id}`)
+  return record
+}
+
 
 const roots: string[] = []
 async function freshStore(): Promise<{ store: NovelStore; dir: string }> {
@@ -31,7 +39,7 @@ describe('NovelStore — book lifecycle', () => {
     const book = await store.createBook({ title: '青云问道', genre: 'fantasy' })
     expect(book.id).toMatch(/^bk_/)
     expect(book.currentPhase).toBe('topic')
-    expect(book.phases.topic.state).toBe('locked')
+    expect(at(book, 'topic').state).toBe('locked')
     expect(book.schemaVersion).toBe(1)
     const raw = JSON.parse(await readFile(join(dir, book.id, 'book.json'), 'utf8')) as { schemaVersion: number }
     expect(raw.schemaVersion).toBe(1)
@@ -61,8 +69,8 @@ describe('NovelStore — book lifecycle', () => {
     }
     await writeFile(join(dir, book.id, 'book.json'), JSON.stringify(legacy), 'utf8')
     const loaded = await store.loadBook(book.id)
-    expect(loaded.phases.topic.state).toBe('approved')
-    expect(loaded.phases.setting.state).toBe('locked') // 缺失阶段补全
+    expect(at(loaded, 'topic').state).toBe('approved')
+    expect(at(loaded, 'setting').state).toBe('locked') // 缺失阶段补全
     expect(loaded.schemaVersion).toBe(1)
   })
 

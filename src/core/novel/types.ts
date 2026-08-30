@@ -6,6 +6,14 @@ import type { PhaseId, PhaseRecord } from '../workflow/types.ts'
 /** 项目状态。 */
 export type BookStatus = 'drafting' | 'finished' | 'abandoned'
 
+/**
+ * 项目类型 id（见 core/kinds.ts：course/official/novel/thesis + 用户自定义）。
+ *
+ * 可选字段：旧项目（P1 之前创建）没有此字段，加载时惰性补 `DEFAULT_KIND_ID`
+ * （'course'），保证零迁移。新项目一律显式写入。
+ */
+export type KindId = string
+
 /** 项目级配置（P1 基础字段；P2 起扩展 style/校验等）。 */
 export interface BookConfig {
   title: string
@@ -47,6 +55,8 @@ export interface Book {
   id: string
   title: string
   genre: string
+  /** 项目类型（决定默认工作流模板）。旧项目缺失时按 DEFAULT_KIND_ID 处理。 */
+  kind?: KindId
   status: BookStatus
   config: BookConfig
   /** 流程状态机面（workflow 引擎直接操作）。 */
@@ -67,6 +77,8 @@ export interface BookSummary {
   id: string
   title: string
   genre: string
+  /** 项目类型（恒有值：缺失时由存储层补 DEFAULT_KIND_ID）。 */
+  kind: KindId
   status: BookStatus
   currentPhase: PhaseId
   chapterCount: number

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  PHASE_ORDER,
+  DEFAULT_PHASE_ORDER,
   canEnter,
   createLedger,
   enter,
@@ -11,7 +11,15 @@ import {
   skip,
   submit,
 } from '../src/core/workflow/index.ts'
-import type { PhaseLedger } from '../src/core/workflow/index.ts'
+import type { PhaseLedger, PhaseRecord } from '../src/core/workflow/index.ts'
+
+/** 取阶段记录：noUncheckedIndexedAccess 下 phases[id] 可能为 undefined，判空集中在此。 */
+function at(owner: { phases: Record<string, PhaseRecord | undefined> }, id: string): PhaseRecord {
+  const record = owner.phases[id]
+  if (!record) throw new Error(`阶段记录缺失: ${id}`)
+  return record
+}
+
 
 const NOW = '2026-08-16T00:00:00.000Z'
 
@@ -23,7 +31,7 @@ function fresh(): PhaseLedger {
 function approveThrough(ledger: PhaseLedger, targetIndex: number): PhaseLedger {
   let current = ledger
   for (let i = 0; i <= targetIndex; i += 1) {
-    const phaseId = PHASE_ORDER[i]!
+    const phaseId = DEFAULT_PHASE_ORDER[i]!
     const entered = enter(current, phaseId, NOW)
     if (!entered.ok) throw new Error(`enter ${phaseId} failed: ${entered.error.message}`)
     current = entered.value.ledger
@@ -36,7 +44,7 @@ function approveThrough(ledger: PhaseLedger, targetIndex: number): PhaseLedger {
 
 describe('workflow — order and adjacency', () => {
   it('exposes the nine-phase main chain', () => {
-    expect(PHASE_ORDER).toEqual([
+    expect(DEFAULT_PHASE_ORDER).toEqual([
       'topic', 'setting', 'character', 'outline', 'volume', 'chapter', 'writing', 'revision', 'done',
     ])
     expect(nextPhaseOf('topic')).toBe('setting')
@@ -83,10 +91,10 @@ describe('workflow — gate rules', () => {
 
 describe('workflow — full progression', () => {
   it('walks topic → done approving each phase', () => {
-    const done = approveThrough(fresh(), PHASE_ORDER.length - 1)
+    const done = approveThrough(fresh(), DEFAULT_PHASE_ORDER.length - 1)
     expect(done.currentPhase).toBe('done')
-    expect(done.phases.done.state).toBe('approved')
-    expect(done.phases.topic.state).toBe('approved')
+    expect(at(done, 'done').state).toBe('approved')
+    expect(at(done, 'topic').state).toBe('approved')
   })
 
   it('submit with errors parks the phase in review', () => {
@@ -96,12 +104,12 @@ describe('workflow — full progression', () => {
     const submitted = submit(entered.value.ledger, 'topic', { passed: false, errorCount: 2, warningCount: 1 }, NOW)
     expect(submitted.ok).toBe(true)
     if (submitted.ok) {
-      expect(submitted.value.ledger.phases.topic.state).toBe('review')
+      expect(at(submitted.value.ledger, 'topic').state).toBe('review')
       expect(submitted.value.event.detail).toContain('2 errors')
       // review 状态可再次提交修复
       const retry = submit(submitted.value.ledger, 'topic', { passed: true, errorCount: 0, warningCount: 0 }, NOW)
       expect(retry.ok).toBe(true)
-      if (retry.ok) expect(retry.value.ledger.phases.topic.state).toBe('approved')
+      if (retry.ok) expect(at(retry.value.ledger, 'topic').state).toBe('approved')
     }
   })
 
@@ -111,11 +119,11 @@ describe('workflow — full progression', () => {
     if (!entered.ok) throw new Error('enter')
     const s1 = submit(entered.value.ledger, 'topic', { passed: false, errorCount: 1, warningCount: 0 }, NOW)
     if (!s1.ok) throw new Error('s1')
-    expect(s1.value.ledger.phases.topic.version).toBe(1)
+    expect(at(s1.value.ledger, 'topic').version).toBe(1)
     const s2 = submit(s1.value.ledger, 'topic', { passed: true, errorCount: 0, warningCount: 0 }, NOW)
     if (!s2.ok) throw new Error('s2')
-    expect(s2.value.ledger.phases.topic.version).toBe(2)
-    expect(s2.value.ledger.phases.topic.approvedAt).toBe(NOW)
+    expect(at(s2.value.ledger, 'topic').version).toBe(2)
+    expect(at(s2.value.ledger, 'topic').approvedAt).toBe(NOW)
   })
 
   it('submit is rejected outside in_progress/review', () => {
@@ -134,7 +142,7 @@ describe('workflow — user overrides', () => {
     if (!submitted.ok) throw new Error('submit')
     const forced = forceApprove(submitted.value.ledger, 'topic', NOW)
     expect(forced.ok).toBe(true)
-    if (forced.ok) expect(forced.value.ledger.phases.topic.state).toBe('approved')
+    if (forced.ok) expect(at(forced.value.ledger, 'topic').state).toBe('approved')
   })
 
   it('reopen sends review/in_progress back to in_progress', () => {
@@ -143,14 +151,14 @@ describe('workflow — user overrides', () => {
     if (!entered.ok) throw new Error('enter')
     const reopened = reopen(entered.value.ledger, 'topic', NOW)
     expect(reopened.ok).toBe(true)
-    if (reopened.ok) expect(reopened.value.ledger.phases.topic.state).toBe('in_progress')
+    if (reopened.ok) expect(at(reopened.value.ledger, 'topic').state).toBe('in_progress')
   })
 
   it('skip works from locked or in_progress only', () => {
     const ledger = fresh()
     const skipped = skip(ledger, 'setting', NOW)
     expect(skipped.ok).toBe(true)
-    if (skipped.ok) expect(skipped.value.ledger.phases.setting.state).toBe('skipped')
+    if (skipped.ok) expect(at(skipped.value.ledger, 'setting').state).toBe('skipped')
     // approved 阶段不能跳过
     const approved = approveThrough(fresh(), 0)
     const again = skip(approved, 'topic', NOW)
@@ -160,18 +168,18 @@ describe('workflow — user overrides', () => {
 
 describe('workflow — revision rollback', () => {
   it('rolls back from revision to any approved phase and relocks the rest', () => {
-    const done = approveThrough(fresh(), PHASE_ORDER.length - 1)
+    const done = approveThrough(fresh(), DEFAULT_PHASE_ORDER.length - 1)
     const rolled = rollback(done, 'outline', NOW)
     expect(rolled.ok).toBe(true)
     if (rolled.ok) {
       const ledger = rolled.value.ledger
       expect(ledger.currentPhase).toBe('outline')
-      expect(ledger.phases.outline.state).toBe('in_progress')
+      expect(at(ledger, 'outline').state).toBe('in_progress')
       // outline 之后的已批准阶段被解锁
-      expect(ledger.phases.volume.state).toBe('locked')
-      expect(ledger.phases.writing.state).toBe('locked')
+      expect(at(ledger, 'volume').state).toBe('locked')
+      expect(at(ledger, 'writing').state).toBe('locked')
       // 之前的保持不变
-      expect(ledger.phases.topic.state).toBe('approved')
+      expect(at(ledger, 'topic').state).toBe('approved')
       expect(rolled.value.event.detail).toContain('rolled back from')
     }
   })
@@ -184,10 +192,10 @@ describe('workflow — revision rollback', () => {
   })
 
   it('refuses rollback to locked or unfinished targets', () => {
-    const done = approveThrough(fresh(), PHASE_ORDER.length - 1)
+    const done = approveThrough(fresh(), DEFAULT_PHASE_ORDER.length - 1)
     const result = rollback(done, 'character', NOW) // character 已批准
     expect(result.ok).toBe(true)
-    const done2 = approveThrough(fresh(), PHASE_ORDER.length - 1)
+    const done2 = approveThrough(fresh(), DEFAULT_PHASE_ORDER.length - 1)
     const bad = rollback(done2, 'done', NOW)
     expect(bad.ok).toBe(false)
   })

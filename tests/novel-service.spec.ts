@@ -310,3 +310,75 @@ describe('NovelService — 模板复制（§3.5-11 cloneProject）', () => {
     expect(code).toBe('ENTRY_NOT_FOUND')
   })
 })
+
+describe('NovelService — 工作流阶段编辑（P6）', () => {
+  it('addWorkflowPhase 追加到末尾并保存', async () => {
+    const { service } = await freshService()
+    const book = await service.createProject('A', 'x')
+    const before = await service.workflowOf(book.id)
+    const wf = await service.addWorkflowPhase(book.id, { name: '额外评审' })
+    expect(wf.phases.length).toBe(before.phases.length + 1)
+    expect(wf.phases[wf.phases.length - 1]?.name).toBe('额外评审')
+    // 落盘可读回
+    expect((await service.workflowOf(book.id)).phases.length).toBe(wf.phases.length)
+  })
+
+  it('addWorkflowPhase 支持指定 index 与 gate', async () => {
+    const { service } = await freshService()
+    const book = await service.createProject('A', 'x')
+    const wf = await service.addWorkflowPhase(book.id, { name: '首阶段', index: 0, gate: 'checklist' })
+    expect(wf.phases[0]?.name).toBe('首阶段')
+    expect(wf.phases[0]?.gate).toBe('checklist')
+  })
+
+  it('renameWorkflowPhase / updateWorkflowPhase 修改阶段', async () => {
+    const { service } = await freshService()
+    const book = await service.createProject('A', 'x')
+    const wf0 = await service.workflowOf(book.id)
+    const firstId = wf0.phases[0]!.id
+    const renamed = await service.renameWorkflowPhase(book.id, firstId, '选题X')
+    expect(renamed.phases[0]?.name).toBe('选题X')
+    const updated = await service.updateWorkflowPhase(book.id, firstId, { gate: 'ai', rubric: '要求可观测', optional: true })
+    expect(updated.phases[0]?.gate).toBe('ai')
+    expect(updated.phases[0]?.rubric).toBe('要求可观测')
+    expect(updated.phases[0]?.optional).toBe(true)
+  })
+
+  it('reorderWorkflowPhases 把首阶段移到末尾', async () => {
+    const { service } = await freshService()
+    const book = await service.createProject('A', 'x')
+    const wf0 = await service.workflowOf(book.id)
+    const firstId = wf0.phases[0]!.id
+    const lastIndex = wf0.phases.length - 1
+    const reordered = await service.reorderWorkflowPhases(book.id, 0, lastIndex)
+    expect(reordered.phases[lastIndex]?.id).toBe(firstId)
+    expect(reordered.phases[0]?.id).toBe(wf0.phases[1]!.id)
+  })
+
+  it('removeWorkflowPhase 删除阶段；最后一个拒绝', async () => {
+    const { service } = await freshService()
+    const book = await service.createProject('A', 'x')
+    const wf0 = await service.workflowOf(book.id)
+    const removed = await service.removeWorkflowPhase(book.id, wf0.phases[0]!.id)
+    expect(removed.phases.length).toBe(wf0.phases.length - 1)
+
+    // 逐个删到只剩一个
+    let cur = removed
+    while (cur.phases.length > 1) {
+      cur = await service.removeWorkflowPhase(book.id, cur.phases[0]!.id)
+    }
+    const error = await catchError(service.removeWorkflowPhase(book.id, cur.phases[0]!.id))
+    expect(error.code).toBe('INVALID_FIELD_TYPE')
+  })
+
+  it('resetWorkflow 恢复类型默认（丢弃定制）', async () => {
+    const { service } = await freshService()
+    const book = await service.createProject('A', 'x')
+    await service.addWorkflowPhase(book.id, { name: '额外' })
+    await service.renameWorkflowPhase(book.id, (await service.workflowOf(book.id)).phases[0]!.id, '改名')
+    const reset = await service.resetWorkflow(book.id)
+    expect(reset.phases[0]?.name).toBe('选题') // course 默认首阶段名
+    expect(reset.phases.length).toBe(9) // course 模板 9 阶段
+    expect(reset.phases.some((p) => p.name === '额外')).toBe(false)
+  })
+})

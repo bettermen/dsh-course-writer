@@ -47,7 +47,7 @@ import { toSummary } from './core/novel/store.ts'
 import type { ProjectPatch } from './core/novel/service.ts'
 import type { BookSummary } from './core/novel/types.ts'
 import { isProjectStatus } from './core/novel/status.ts'
-import { createPhase, insertPhase, isPhaseGate, removePhase, renamePhase, reorderPhase, updatePhase, validateWorkflow } from './core/workflow/schema.ts'
+import { isPhaseGate, validateWorkflow } from './core/workflow/schema.ts'
 import type { Workflow, WorkflowArtifact, WorkflowPhase } from './core/workflow/schema.ts'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -671,12 +671,13 @@ export function registerNovelRoutes(ctx: Context, assembly: NovelAssembly): void
           if (!svc) return
           try {
             const body = await readJsonBody(req)
-            const current = await svc.novel.workflowOf(projectId)
-            const index = typeof body.index === 'number' && Number.isFinite(body.index) ? body.index : current.phases.length
-            const phase = { ...createPhase(current, String(body.name ?? ''), String(body.id ?? body.name ?? 'phase')), ...(typeof body.gate === 'string' ? { gate: body.gate as never } : {}) }
-            const next = insertPhase(current, phase, index)
-            if (!next.ok) return fail(res, 400, next.error.code, next.error.message)
-            writeJson(res, 200, { ok: true, value: await svc.novel.saveWorkflow(projectId, next.value) })
+            const workflow = await svc.novel.addWorkflowPhase(projectId, {
+              name: String(body.name ?? ''),
+              ...(typeof body.index === 'number' && Number.isFinite(body.index) ? { index: body.index } : {}),
+              ...(typeof body.id === 'string' ? { id: body.id } : {}),
+              ...(isPhaseGate(body.gate) ? { gate: body.gate } : {}),
+            })
+            writeJson(res, 200, { ok: true, value: workflow })
           } catch (error) {
             failDomain(res, error, 'INVALID_FIELD_TYPE')
           }
@@ -689,10 +690,8 @@ export function registerNovelRoutes(ctx: Context, assembly: NovelAssembly): void
           if (!svc) return
           try {
             const body = await readJsonBody(req)
-            const current = await svc.novel.workflowOf(projectId)
-            const next = reorderPhase(current, Number(body.from), Number(body.to))
-            if (!next.ok) return fail(res, 400, next.error.code, next.error.message)
-            writeJson(res, 200, { ok: true, value: await svc.novel.saveWorkflow(projectId, next.value) })
+            const workflow = await svc.novel.reorderWorkflowPhases(projectId, Number(body.from), Number(body.to))
+            writeJson(res, 200, { ok: true, value: workflow })
           } catch (error) {
             failDomain(res, error, 'INVALID_FIELD_TYPE')
           }
@@ -706,18 +705,13 @@ export function registerNovelRoutes(ctx: Context, assembly: NovelAssembly): void
           const phaseId = segments[4]!
           const action = segments[5]!
           try {
-            const current = await svc.novel.workflowOf(projectId)
             if (action === 'rename') {
               const body = await readJsonBody(req)
-              const next = renamePhase(current, phaseId, String(body.name ?? ''))
-              if (!next.ok) return fail(res, 400, next.error.code, next.error.message)
-              writeJson(res, 200, { ok: true, value: await svc.novel.saveWorkflow(projectId, next.value) })
+              writeJson(res, 200, { ok: true, value: await svc.novel.renameWorkflowPhase(projectId, phaseId, String(body.name ?? '')) })
               return
             }
             if (action === 'delete') {
-              const next = removePhase(current, phaseId)
-              if (!next.ok) return fail(res, 400, next.error.code, next.error.message)
-              writeJson(res, 200, { ok: true, value: await svc.novel.saveWorkflow(projectId, next.value) })
+              writeJson(res, 200, { ok: true, value: await svc.novel.removeWorkflowPhase(projectId, phaseId) })
               return
             }
             if (action === 'update') {
@@ -729,9 +723,7 @@ export function registerNovelRoutes(ctx: Context, assembly: NovelAssembly): void
               if (body.gate !== undefined && isPhaseGate(body.gate)) patch.gate = body.gate
               if (body.optional !== undefined) patch.optional = body.optional === true
               if (Array.isArray(body.artifacts)) patch.artifacts = body.artifacts as WorkflowArtifact[]
-              const next = updatePhase(current, phaseId, patch)
-              if (!next.ok) return fail(res, 400, next.error.code, next.error.message)
-              writeJson(res, 200, { ok: true, value: await svc.novel.saveWorkflow(projectId, next.value) })
+              writeJson(res, 200, { ok: true, value: await svc.novel.updateWorkflowPhase(projectId, phaseId, patch) })
               return
             }
             fail(res, 400, 'INVALID_FIELD_TYPE', 'unknown action')

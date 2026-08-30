@@ -954,3 +954,38 @@
 - [ ] 工作台「阶段」视图改用动态 `workflow.phases`（当前仍硬编码 9 阶段，与可编辑工作流脱节）
 - [ ] 阶段属性里的 `nameEn` 字段：`PhaseEditModal` 未提供编辑入口（后端 `update` 动作也不收 `nameEn`），用户自定义阶段的英文名暂不可改
 - [ ] GitHub 推送受沙箱网络限制（直连超时 / 代理 502），本地已提交待补推
+
+## 模块 23：Agent 侧工作流与项目管理工具（P6 —— course_workflow / course_project_update / course_project_delete + create_project 扩参 + SKILL.md）
+
+**日期**：2026-08-30
+
+**背景**：P2 给了后端工作流编辑接口、P5 给了 GUI 编辑器，但 **Agent 对话侧**仍是旧九阶段硬编码认知——模型既不知道「4 种类型各有默认流程」，也没有工具去「加一个阶段 / 删阶段 / 改项目状态 / 删项目」。P6 把工作流编辑与项目管理能力补到 Agent 工具面，让「帮我加一个阶段」这类指令可被工具执行。
+
+**范围**：
+1. **`src/core/novel/service.ts`（+5 方法 + 1 类型）**：新增 `addWorkflowPhase`/`reorderWorkflowPhases`/`renameWorkflowPhase`/`updateWorkflowPhase`/`removeWorkflowPhase`，全部复用 `core/workflow/schema.ts` 纯函数（`createPhase`/`insertPhase`/`reorderPhase`/`renamePhase`/`updatePhase`/`removePhase`）+ `saveWorkflow` 落盘；导出 `WorkflowPhasePatch` 类型。业务逻辑从 routes 收口到 service，形成单一事实源。
+2. **`src/routes.ts`（重构，契约不变）**：`/projects/<id>/workflow/phases` 的三段内联逻辑（add / reorder / rename+update+delete）改为调用 service 新方法，删除对 `createPhase`/`insertPhase`/`reorderPhase`/`renamePhase`/`removePhase`/`updatePhase` 的直接 import（只保留 `isPhaseGate`/`validateWorkflow`）。
+3. **`src/tools/novel.ts`（+3 工具 + 2 扩参）**：
+   - `course_workflow`：`action=list|add|rename|update|delete|reorder|reset` 查看/编辑项目工作流（门禁 gate、说明、提示词、评审标准、可跳过、拖拽下标）。
+   - `course_project_update`：更新名称/简介/题材/状态/类型（改 kind 会连带重置工作流）。
+   - `course_project_delete`：删除项目（`keepChapters` 决定是否保留讲义文件）。
+   - `course_create_project` 扩参 `kind`（course/official/novel/thesis/自定义）+ `description`；`course_clone_project` 扩参 `kind`。
+4. **`assets/skills/course-writing-workflow/SKILL.md`（重写）**：新增「项目类型」表（4 内置 + 自定义，含默认阶段数与典型题材）、「工作流可编辑」（`course_workflow` 七动作 + gate 四取值）、「项目管理」（update/delete/clone/stats/audit）；强调「以工具返回的实际阶段 id 为准，勿臆测阶段名」。
+
+**验收证据**：
+- `npm run typecheck` 0 错误（host + client）；`npm run build` 成功
+- 新增 `tests/novel-service.spec.ts`「工作流阶段编辑（P6）」6 例：add 追加/指定 index+gate、rename+update、reorder、remove（最后一个拒绝）、reset 恢复默认
+- `tests/assembly.spec.ts` `TOOL_COUNT` 44 → **47**（novel 10 → 13）
+- 分批回归：routes-api(33) + novel-service(23) + assembly(6) + guide(10) + workflow(17) + workflow-dynamic(15) + project-query(24) = **128 例全绿**；routes 重构后 33 例无回归（契约不变）
+
+**Code Review 结论（通过 ✅）**：
+1. ✅ 单一事实源：阶段增删改序逻辑收口到 `NovelService`，routes 与 tools 共用，消除「routes 内联 + 工具再写一遍」的双实现
+2. ✅ 纯函数复用：所有结构校验/顺序计算仍由 `workflow/schema.ts` 的 `Result` 纯函数承担，service 只做「读 → 调纯函数 → 写」的组合
+3. ✅ 路由契约不变：重构只换了实现，路径/请求体/响应体与 HTTP 状态码逐一保持，由 `routes-api.spec.ts` 33 例锁定
+4. ✅ 工具参数宽松 + 服务端兜底：`course_workflow` 的 `gate` 由 `addWorkflowPhase` 收 `PhaseGate`，非法值落到 `createPhase` 默认 `manual` 或 `validateWorkflow` 拒绝；`course_project_update` 的 `status` 由 `updateProject` 的 `isProjectStatus` 校验
+5. ✅ 危险操作有确认语义：`course_project_delete` 默认 `keepChapters=false`（连讲义删），description 明示「不可恢复」；`update kind` 在 description 明示「会重置工作流」
+6. ⚠️ 已知边界：`course_workflow` 的 `update` 动作不暴露 `artifacts`（必交产物）数组编辑——产物是复杂数组，留给 GUI（P5）编辑；Agent 侧如需改产物可后续补 `artifacts` 参数
+
+**遗留事项**：
+- [ ] `course_guide`（工坊助手意图解析）尚未把「加阶段/删阶段/改状态」纳入意图规则（`core/guide/engine.ts` 的 `parseIntent`），自然语言仍无法自动路由到 `course_workflow`/`course_project_update` —— 依赖模型自行选择工具，可作为后续 P 项补意图
+- [ ] `course_workflow` 的 `update` 动作补 `artifacts` 数组编辑参数
+- [ ] 对话实测「帮我加一个阶段」需重启 DSH 客户端后验证（工具注册在装配期生效）

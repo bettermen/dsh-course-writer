@@ -5,8 +5,8 @@ import type { NovelService } from '../src/core/novel/index.ts'
 import { KindStore } from '../src/core/kinds-store.ts'
 import { WorkflowStore } from '../src/core/workflow/store.ts'
 
-/** 当前注册的工具总数（lorebook 13 + novel 10 + extras 9 + quality 5 + quiz 3 + guide 2 + skill 1 + stats 1）。 */
-const TOOL_COUNT = 44
+/** 当前注册的工具总数（lorebook 13 + novel 13 + extras 9 + quality 5 + quiz 3 + guide 2 + skill 1 + stats 1）。 */
+const TOOL_COUNT = 47
 
 /** 最小 ctx：tools.register 计数 + 返回 disposer。 */
 function mockCtx() {
@@ -50,7 +50,7 @@ describe('NovelAssembly — settings gate', () => {
     assembly.sync(true, '/data')
     expect(assembly.active).toBe(true)
     expect(created).toEqual(['/data'])
-    // 44 个工具（lorebook 13 + novel 10 + extras 9 + quality 5 + quiz 3 + guide 2 + skill 1 + stats 1）
+    // 47 个工具（lorebook 13 + novel 13 + extras 9 + quality 5 + quiz 3 + guide 2 + skill 1 + stats 1）
     expect(disposers).toHaveLength(TOOL_COUNT)
   })
 

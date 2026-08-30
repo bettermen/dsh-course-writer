@@ -12,6 +12,7 @@ import { defineTool, type JsonValue } from '@deepseek-ai/dsh-tools'
 import { asResult } from '../core/lorebook/service.ts'
 import type { NovelService } from '../core/novel/service.ts'
 import type { PhaseId } from '../core/workflow/index.ts'
+import type { PhaseGate } from '../core/workflow/schema.ts'
 import { jsonOutput } from './json.ts'
 
 export interface NovelToolDeps {
@@ -27,31 +28,45 @@ export function registerNovelDomainTools(ctx: Context, deps: NovelToolDeps): Arr
   return [
     ctx.tools.register(defineTool({
       name: 'course_create_project',
-      description: '创建课程项目（进入 topic 选题阶段）。触发：创建项目/新课程/开新课程/新建课程。',
+      description: '创建项目（进入选题阶段）。支持四种内置类型与用户自定义类型，类型决定其工作流与题材口径。触发：创建项目/新课程/开新课程/新建课程/写一篇公文/写小说/写论文。',
       parameters: {
-        title: { type: 'string', required: true, description: '课程名' },
-        genre: { type: 'string', description: '课程类型 id（默认 general；可选：general/humanities/science/math/chinese/english/physics/chemistry/biology/history/geography/programming/design/marketing/management/finance/law/certification/civil-service/art/music/health/sports）' },
+        title: { type: 'string', required: true, description: '项目名称' },
+        genre: { type: 'string', description: '题材 id（按类型取值；课程缺省 general）' },
+        kind: { type: 'string', description: '项目类型 id：course 课程 / official 公文 / novel 小说 / thesis 论文，或用户自定义类型；缺省 course' },
+        description: { type: 'string', description: '一句话简介（选填）' },
       },
       output: jsonOutput(),
       execute: async (rawArgs) => {
-        const args = rawArgs as { title: string; genre?: string }
-        return asJson(await asResult(() => novel.createProject(String(args.title ?? '').trim(), String(args.genre ?? 'general').trim() || 'general')))
+        const args = rawArgs as { title: string; genre?: string; kind?: string; description?: string }
+        const kind = String(args.kind ?? '').trim() || undefined
+        return asJson(await asResult(async () => {
+          const book = await novel.createProject(
+            String(args.title ?? '').trim(),
+            String(args.genre ?? 'general').trim() || 'general',
+            kind,
+          )
+          if (args.description !== undefined) {
+            await novel.updateProject(book.id, { description: String(args.description).trim() })
+          }
+          return await novel.load(book.id)
+        }))
       },
       isConcurrencySafe: () => true,
     })),
 
     ctx.tools.register(defineTool({
       name: 'course_clone_project',
-      description: '以一本已有项目为模板克隆新项目（模板复制）：复制字数目标/风格/禁用词 + 已完成的阶段设定文档（选题/设定/人设/大纲/单元/教案），讲义不复制，状态机重置。触发：克隆/复制/套用模板/参照这本课程写一本新的。',
+      description: '以一本已有项目为模板克隆新项目（模板复制）：复制字数目标/风格/禁用词 + 已完成的阶段设定文档，讲义不复制，状态机重置。触发：克隆/复制/套用模板/参照这本写一本新的。',
       parameters: {
         sourceId: { type: 'string', required: true, description: '源项目 ID（作为模板的书）' },
-        title: { type: 'string', description: '新课程名（缺省为「源课程名（模板）」）' },
+        title: { type: 'string', description: '新项目名（缺省为「源项目名（模板）」）' },
         genre: { type: 'string', description: '新题材 id（缺省沿用源题材）' },
+        kind: { type: 'string', description: '新类型 id（缺省沿用源类型）' },
       },
       output: jsonOutput(),
       execute: async (rawArgs) => {
-        const args = rawArgs as { sourceId: string; title?: string; genre?: string }
-        return asJson(await asResult(() => novel.cloneProject(args.sourceId, { title: args.title, genre: args.genre })))
+        const args = rawArgs as { sourceId: string; title?: string; genre?: string; kind?: string }
+        return asJson(await asResult(() => novel.cloneProject(args.sourceId, { title: args.title, genre: args.genre, kind: args.kind })))
       },
       isConcurrencySafe: () => true,
     })),
@@ -202,6 +217,113 @@ export function registerNovelDomainTools(ctx: Context, deps: NovelToolDeps): Arr
             phases: book.phases,
           }
         }))
+      },
+      isConcurrencySafe: () => true,
+    })),
+
+    ctx.tools.register(defineTool({
+      name: 'course_workflow',
+      description: '查看或编辑项目工作流（阶段的有序列表 + 每阶段门禁/产物/提示词/评审标准）。' +
+        'action=list 查看（默认）；action=add 新增阶段；action=rename 重命名；action=update 编辑阶段属性；' +
+        'action=delete 删除阶段（最后一个拒绝删）；action=reorder 拖拽排序（from/to 为 0 起下标）；' +
+        'action=reset 恢复为该类型默认流程。触发：加一个阶段/删掉某阶段/调整流程/看流程/重排阶段/恢复默认流程。',
+      parameters: {
+        projectId: { type: 'string', required: true, description: '项目 ID' },
+        action: { type: 'string', description: 'list | add | rename | update | delete | reorder | reset（默认 list）' },
+        name: { type: 'string', description: '阶段名（add/rename/update）' },
+        index: { type: 'number', description: '插入位置下标（add，缺省追加末尾）' },
+        gate: { type: 'string', description: '门禁类型（add/update）：none 无 / manual 手动 / checklist 清单 / ai 评审' },
+        phaseId: { type: 'string', description: '目标阶段 id（rename/update/delete）' },
+        description: { type: 'string', description: '阶段说明（update）' },
+        prompt: { type: 'string', description: '该阶段 AI 执行提示词（update）' },
+        rubric: { type: 'string', description: '评审标准（update，gate=ai 时生效）' },
+        optional: { type: 'boolean', description: '可跳过（update）' },
+        from: { type: 'number', description: '拖拽起点下标（reorder）' },
+        to: { type: 'number', description: '拖拽终点下标（reorder）' },
+      },
+      output: jsonOutput(),
+      execute: async (rawArgs) => {
+        const args = rawArgs as {
+          projectId: string; action?: string; name?: string; index?: number; gate?: string
+          phaseId?: string; description?: string; prompt?: string; rubric?: string
+          optional?: boolean; from?: number; to?: number
+        }
+        const action = args.action ?? 'list'
+        return asJson(await asResult(async () => {
+          switch (action) {
+            case 'list':
+              return { workflow: await novel.workflowOf(args.projectId) }
+            case 'add':
+              return {
+                workflow: await novel.addWorkflowPhase(args.projectId, {
+                  name: args.name ?? '',
+                  ...(typeof args.index === 'number' ? { index: args.index } : {}),
+                  ...(args.gate ? { gate: args.gate as PhaseGate } : {}),
+                }),
+              }
+            case 'rename':
+              return { workflow: await novel.renameWorkflowPhase(args.projectId, args.phaseId ?? '', args.name ?? '') }
+            case 'delete':
+              return { workflow: await novel.removeWorkflowPhase(args.projectId, args.phaseId ?? '') }
+            case 'reorder':
+              return { workflow: await novel.reorderWorkflowPhases(args.projectId, args.from ?? 0, args.to ?? 0) }
+            case 'reset':
+              return { workflow: await novel.resetWorkflow(args.projectId) }
+            case 'update': {
+              const patch: Record<string, unknown> = {}
+              if (args.name !== undefined) patch.name = args.name
+              if (args.description !== undefined) patch.description = args.description
+              if (args.prompt !== undefined) patch.prompt = args.prompt
+              if (args.rubric !== undefined) patch.rubric = args.rubric
+              if (args.gate !== undefined) patch.gate = args.gate
+              if (args.optional !== undefined) patch.optional = args.optional === true
+              return { workflow: await novel.updateWorkflowPhase(args.projectId, args.phaseId ?? '', patch as never) }
+            }
+            default:
+              throw { code: 'INVALID_FIELD_TYPE', message: `未知 action: ${action}` } as never
+          }
+        }))
+      },
+      isConcurrencySafe: () => true,
+    })),
+
+    ctx.tools.register(defineTool({
+      name: 'course_project_update',
+      description: '更新项目元信息：名称/简介/题材/状态/类型。注意：改类型（kind）会连带把工作流重置为该类型的默认流程。' +
+        '状态取值：draft 草稿 / in_progress 进行中 / paused 暂停 / done 已完成 / archived 已归档。',
+      parameters: {
+        projectId: { type: 'string', required: true, description: '项目 ID' },
+        title: { type: 'string', description: '新名称' },
+        description: { type: 'string', description: '一句话简介' },
+        genre: { type: 'string', description: '题材 id' },
+        status: { type: 'string', description: 'draft | in_progress | paused | done | archived' },
+        kind: { type: 'string', description: '类型 id（course/official/novel/thesis 或自定义；改类型会重置工作流）' },
+      },
+      output: jsonOutput(),
+      execute: async (rawArgs) => {
+        const args = rawArgs as { projectId: string; title?: string; description?: string; genre?: string; status?: string; kind?: string }
+        const patch: Record<string, unknown> = {}
+        if (args.title !== undefined) patch.title = args.title
+        if (args.description !== undefined) patch.description = args.description
+        if (args.genre !== undefined) patch.genre = args.genre
+        if (args.status !== undefined) patch.status = args.status
+        if (args.kind !== undefined) patch.kind = args.kind
+        return asJson(await asResult(() => novel.updateProject(args.projectId, patch as never)))
+      },
+      isConcurrencySafe: () => true,
+    })),
+
+    ctx.tools.register(defineTool({
+      name: 'course_project_delete',
+      description: '删除项目。keepChapters=true 仅删项目记录、讲义文件保留在磁盘上；缺省 false 连讲义一并删除（不可恢复）。',
+      parameters: {
+        projectId: { type: 'string', required: true, description: '项目 ID' },
+        keepChapters: { type: 'boolean', description: '是否保留讲义文件（默认 false）' },
+      },
+      output: jsonOutput(),
+      execute: async (rawArgs) => {
+        const args = rawArgs as { projectId: string; keepChapters?: boolean }
+        return asJson(await asResult(() => novel.deleteProject(args.projectId, args.keepChapters === true)))
       },
       isConcurrencySafe: () => true,
     })),

@@ -1,45 +1,78 @@
 ---
 name: course-writing-workflow
-description: 通用课程编写全流程（九阶段门禁式）：选题→学情设定→教学目标→课程大纲→单元设计→课时教案→课件练习→评估修订→结课。使用 course_* 工具推进、lorebook_* 管理课程资料库，模型不得口头跳阶段。 — General nine-phase gated course-authoring workflow (topic → learner analysis → objectives → outline → units → lesson plans → courseware → assessment); advance via course_* tools, manage the lorebook via lorebook_*, never skip phases verbally.
-whenToUse: 用户要求开始编写课程、写教案、设定学情、生成大纲、设计教学目标、润色或诊断教案时。 — When the user asks to author a course, write lesson plans, set learner analysis, generate an outline, design objectives, or polish/diagnose lesson plans.
+description: 通用创作全流程（门禁式、工作流可编辑）。支持课程/公文/小说/论文与自定义类型，每种类型自带一套默认工作流（课程九阶段、公文七阶段、小说九阶段、论文八阶段），可用 course_workflow 工具增删改序。阶段推进必须走 course_* 工具，用 lorebook_* 管理资料库，模型不得口头跳阶段。 — General gated authoring workflow with an editable pipeline (course / official document / novel / thesis + custom kinds). Advance via course_* tools, edit the workflow via course_workflow, manage the lorebook via lorebook_*; never skip phases verbally.
+whenToUse: 用户要求开始创作（课程/公文/小说/论文/自定义类型）、写教案、写公文、写小说、写论文、设定学情、生成大纲、设计目标、润色或诊断，或要求调整/查看某项目的流程（加阶段/删阶段/重排阶段）时。 — When the user asks to author a course/official document/novel/thesis, draft lesson plans, generate an outline, polish, or view/edit a project's workflow.
 ---
 
-# 课程编写工作流（xiashuo）
+# 创作工作流（xiashuo）
 
-本技能定义课程编写的标准流程。**阶段推进必须走工具，未 commit 不得自称完成。**
+本技能定义各类创作的**门禁式**标准流程。**阶段推进必须走工具，未 commit 不得自称完成。**
 
-## 1. 九阶段流程（按序推进，禁止跳阶段）
+## 0. 项目类型（Kind）
 
-`topic(课程选题) → setting(学情设定) → character(教学目标) → outline(课程大纲) → volume(单元设计) → chapter(课时教案) → writing(课件与练习) → revision(评估修订) → done(结课)`
+`course_create_project { title, kind?, genre?, description? }` 创建项目，`kind` 决定默认工作流与题材口径：
+
+| kind | 名称 | 默认工作流 | 典型题材 |
+|---|---|---|---|
+| `course` | 课程 | 九阶段（选题→学情→目标→大纲→单元→教案→课件→评估→结课） | 通识/人文/数理化/编程/设计/营销等 |
+| `official` | 公文 | 七阶段（需求→材料→提纲→初稿→校核→签发→归档） | 通知/请示/报告/函/纪要/讲话稿 |
+| `novel` | 小说 | 九阶段（选题→设定→人设→大纲→分卷→细纲→正文→修订→完结） | 玄幻/都市/悬疑/科幻/历史/言情 |
+| `thesis` | 论文 | 八阶段（选题→文献→设计→提纲→正文→分析→规范→答辩） | 工学/理学/社科/医学/经管/文学 |
+
+用户也可用自定义类型（`kind` 传自定义 id，或经首页自建）。**先问清类型**再建项目，避免用错流程。创建后可 `course_project_update { projectId, description }` 补简介。
+
+## 1. 阶段推进（禁止跳阶段）
 
 - 进入阶段：`course_phase { projectId, phase }`（前置阶段必须 approved/skipped，否则工具报 INVALID_STATE）。
 - 提交产物：`course_commit { projectId, phase, artifact, errorCount }`——产物写入 docs/<phase>.md 与版本快照；errorCount>0 会挂起 review，需要修改后重新提交。
 - 用户覆盖：`course_override { action: force|reopen|skip|rollback }`（force 放行、reopen 驳回、skip 跳过、rollback 在修订期回退）。
+- 阶段名因类型而异：课程是「选题/学情设定/教学目标/…」，公文是「需求确认/材料收集/…」，小说是「选题/核心设定/人设/…」，论文是「选题立项/文献综述/…」。**以 `course_phase` / `course_workflow(action=list)` 返回的实际阶段 id 为准**，不要臆测。
 
-## 2. 课程资料库（lorebook）纪律
+## 2. 工作流可编辑（course_workflow）
 
-- **编写前必查**：开始写教案前，先确认本课程已绑定足够的资料库条目（`lorebook_list_entries` 按 `book_id` 核对）。若某课程没有绑定条目，**主动提醒用户先建立资料库**（核心概念/知识点/专业术语/案例/资源），再开始写教案。
-- **知识点即时沉淀**：编写过程中出现的任何关键知识点、专业术语、定义、公式、案例——**立即用 `lorebook_create_entry` 保存**，并传 `book_id` 绑定当前课程。不要等用户要求。
-- 条目按 `book_id` 绑定具体课程：每门课程拥有自己的资料库条目集合，课程之间隔离。
-- 核心概念/术语表建议设为常驻条目（always_active）；案例/延伸资料用关键词触发。
-- 编写前查询相关条目：`lorebook_list_entries` / `lorebook_get_entry`。
-- GUI：课程工坊 → 资料库（按课程分栏管理；新建条目时选择绑定课程）。
+项目的工作流不是死的，可用 `course_workflow` 查看与编辑：
 
-## 3. 教案编写协议（两段式）
+- 查看：`course_workflow { projectId, action:'list' }` → 返回阶段有序列表 + 每阶段门禁/产物/提示词/评审标准。
+- 加阶段：`course_workflow { projectId, action:'add', name, index?, gate? }`。
+- 改名：`course_workflow { projectId, action:'rename', phaseId, name }`。
+- 改属性：`course_workflow { projectId, action:'update', phaseId, name?/description?/gate?/prompt?/rubric?/optional? }`。
+- 删除：`course_workflow { projectId, action:'delete', phaseId }`（最后一个阶段拒绝删除）。
+- 排序：`course_workflow { projectId, action:'reorder', from, to }`（0 起下标）。
+- 恢复默认：`course_workflow { projectId, action:'reset' }`。
 
-1. `course_write_chapter { projectId, chapterNo, brief? }` → 返回上下文包（L1 课程设定 + L2 单元教案与前文 + L3 摘要/变量/资料库命中 + 硬约束）。
-2. 在回复中直接输出本课教案（遵守上下文包的 constraints：课时目标/流程/时长/禁用词/小结）。
+门禁 `gate` 取值：`none` 无 / `manual` 手动确认（默认）/ `checklist` 清单校验 / `ai` AI 评审。编辑后推进流程仍按新顺序与新门禁执行。
+
+## 3. 项目管理
+
+- 列出项目：`course_projects`。
+- 更新元信息：`course_project_update { projectId, title?/description?/genre?/status?/kind? }`（status：draft/in_progress/paused/done/archived；**改 kind 会重置工作流**）。
+- 删除：`course_project_delete { projectId, keepChapters? }`（keepChapters=true 保留讲义文件）。
+- 克隆：`course_clone_project { sourceId, title?, genre?, kind? }`（复制设定与已完成的阶段文档，讲义不复制）。
+- 统计/状态：`course_stats { projectId }`、`course_audit { projectId }`。
+
+## 4. 资料库（lorebook）纪律
+
+- **动笔前必查**：写正文前先确认已绑定足够资料库条目（`lorebook_list_entries` 按 `book_id` 核对）。没有就**主动提醒用户先建**（核心概念/知识点/术语/案例/资源）。
+- **知识点即时沉淀**：过程中出现的关键知识点、术语、定义、公式、案例——**立即 `lorebook_create_entry`** 并传 `book_id` 绑定当前项目，不要等用户要求。
+- 条目按 `book_id` 隔离，每类创作各自的资料库集合。
+- 核心概念/术语表建议 `always_active` 常驻；案例/延伸用关键词触发。
+- 小说/论文的设定、文献条目同样沉淀为资料库条目（`lorebook` 产物）。
+
+## 5. 正文编写协议（两段式）
+
+1. `course_write_chapter { projectId, chapterNo, brief? }` → 返回上下文包（设定 + 前文 + 摘要/变量/资料库命中 + 硬约束）。
+2. 在回复中直接输出本节正文（遵守 constraints：目标/结构/时长或字数/禁用词/小结）。
 3. `course_commit_chapter { projectId, chapterNo, title, text, brief? }` → 落盘并自动统计字数与达标判定。
-4. 教案需要维护状态时，可在文末输出 `<JSONPatch>[{"op":"replace","path":"/stat_data/知识掌握","value":"已掌握"}]</JSONPatch>` 更新课程级变量。
+4. 需要维护课程级变量时，文末输出 `<JSONPatch>[{"op":"replace","path":"/stat_data/…","value":"…"}]</JSONPatch>`。
 
-## 4. 质量自检（提交前）
+## 6. 质量自检（提交前）
 
-- 一致性：知识点/术语/案例与账本、资料库条目一致，不冲突。
-- 结构：本课完成教学目标；课末留有小结与练习引导。
-- 文风：避免 AI 味表达（"不禁/仿佛/综上所述/值得注意的是"等），语言自然、贴近教学口语。
-- 字数/时长：达标用 `course_wordcount`（或 commit 后 stats 提示）。
+- 一致性：知识点/术语/案例与账本、资料库一致，不冲突。
+- 结构：本阶段完成目标；末了有小结与下一步引导。
+- 文风：避免 AI 味表达（"不禁/仿佛/综上所述/值得注意的是"等）；公文需庄重平实、合 GB/T 9704；论文需论据充分、引用规范。
+- 达标：字数/时长用 `course_wordcount`（或 commit 后 stats 提示）。
 
-## 5. 评估与结课
+## 7. 评估与结课
 
-- 修订阶段用 `course_override { action: 'rollback', phase: <目标> }` 回退到已批准阶段重新走。
-- 全部完成后提交 revision → done，用 `lorebook_export_entries` + 课时文件完成成稿归档。
+- 修订期用 `course_override { action:'rollback', phase:<目标> }` 回退重走。
+- 全部完成后提交 revision → done，用导出 + 课时文件完成成稿归档。

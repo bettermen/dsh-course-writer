@@ -9,9 +9,12 @@ import type { AuditEvent, PhaseId, PhaseLedger } from '../workflow/types.ts'
 import type { EngineContext } from '../workflow/engine.ts'
 import { enter, forceApprove, reopen, rollback, skip, submit } from '../workflow/engine.ts'
 import type { PhaseReport } from '../workflow/types.ts'
-import { instantiateWorkflow, phaseOrderOf } from '../workflow/schema.ts'
+import {
+  instantiateWorkflow, phaseOrderOf, createPhase, insertPhase,
+  removePhase, renamePhase, updatePhase, reorderPhase,
+} from '../workflow/schema.ts'
 import { builtinTemplateOf } from '../workflow/templates.ts'
-import type { Workflow } from '../workflow/schema.ts'
+import type { Workflow, WorkflowPhase, PhaseGate } from '../workflow/schema.ts'
 import { progressOf as progressOfPhases } from '../project/query.ts'
 import type { Book, BookConfig, BookSummary, Chapter, KindId } from './types.ts'
 import type { NovelStore } from './store.ts'
@@ -43,6 +46,9 @@ export interface ProjectPatch {
   /** 改类型会连带把工作流重置为新类型的内置模板（见 updateProject 注释）。 */
   kind?: string
 }
+
+/** 阶段局部更新入参（流程编辑器 / course_workflow 工具的 update 动作）。 */
+export type WorkflowPhasePatch = Partial<Omit<WorkflowPhase, 'id'>>
 
 export class NovelService {
   private readonly store: NovelStore
@@ -235,6 +241,53 @@ export class NovelService {
   /** 项目类型（缺省 course；供路由层回填类型名）。 */
   async kindOf(bookId: string): Promise<string> {
     return (await this.store.loadBook(bookId)).kind ?? DEFAULT_KIND_ID
+  }
+
+  // ── 工作流阶段编辑（P6 Agent 侧；纯函数见 workflow/schema.ts） ──
+
+  /** 新增阶段（index 缺省追加末尾；gate 缺省 manual）。返回保存后的工作流。 */
+  async addWorkflowPhase(bookId: string, input: { name: string; index?: number; id?: string; gate?: PhaseGate }): Promise<Workflow> {
+    const current = await this.workflowOf(bookId)
+    const index = typeof input.index === 'number' && Number.isFinite(input.index) ? input.index : current.phases.length
+    const phase: WorkflowPhase = {
+      ...createPhase(current, String(input.name ?? ''), String(input.id ?? input.name ?? 'phase')),
+      ...(input.gate !== undefined ? { gate: input.gate } : {}),
+    }
+    const next = insertPhase(current, phase, index)
+    if (!next.ok) throw next.error
+    return await this.saveWorkflow(bookId, next.value)
+  }
+
+  /** 拖拽排序：把 from 位置的阶段移动到 to 位置。 */
+  async reorderWorkflowPhases(bookId: string, from: number, to: number): Promise<Workflow> {
+    const current = await this.workflowOf(bookId)
+    const next = reorderPhase(current, from, to)
+    if (!next.ok) throw next.error
+    return await this.saveWorkflow(bookId, next.value)
+  }
+
+  /** 重命名阶段。 */
+  async renameWorkflowPhase(bookId: string, phaseId: string, name: string): Promise<Workflow> {
+    const current = await this.workflowOf(bookId)
+    const next = renamePhase(current, phaseId, name)
+    if (!next.ok) throw next.error
+    return await this.saveWorkflow(bookId, next.value)
+  }
+
+  /** 局部更新阶段（门禁/描述/产物/提示词/评审标准/可跳过/名称）。 */
+  async updateWorkflowPhase(bookId: string, phaseId: string, patch: WorkflowPhasePatch): Promise<Workflow> {
+    const current = await this.workflowOf(bookId)
+    const next = updatePhase(current, phaseId, patch)
+    if (!next.ok) throw next.error
+    return await this.saveWorkflow(bookId, next.value)
+  }
+
+  /** 删除阶段（最后一个阶段拒绝删除）。 */
+  async removeWorkflowPhase(bookId: string, phaseId: string): Promise<Workflow> {
+    const current = await this.workflowOf(bookId)
+    const next = removePhase(current, phaseId)
+    if (!next.ok) throw next.error
+    return await this.saveWorkflow(bookId, next.value)
   }
 
   /** 项目目录（向导状态等辅助文件落点）。 */

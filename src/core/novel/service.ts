@@ -10,9 +10,14 @@ import type { EngineContext } from '../workflow/engine.ts'
 import { enter, forceApprove, reopen, rollback, skip, submit } from '../workflow/engine.ts'
 import type { PhaseReport } from '../workflow/types.ts'
 import { instantiateWorkflow, phaseOrderOf } from '../workflow/schema.ts'
+import { builtinTemplateOf } from '../workflow/templates.ts'
 import type { Workflow } from '../workflow/schema.ts'
+import { progressOf as progressOfPhases } from '../project/query.ts'
 import type { Book, BookConfig, BookSummary, Chapter, KindId } from './types.ts'
 import type { NovelStore } from './store.ts'
+import { DEFAULT_KIND_ID } from '../kinds.ts'
+import { isProjectStatus } from './status.ts'
+import type { ProjectStatus } from './status.ts'
 import { checkWordTarget, countChapter } from '../stats/wordcount.ts'
 import type { VariableStoreFile } from '../variables/store.ts'
 import type { ContextPacket } from '../context/types.ts'
@@ -27,6 +32,16 @@ export interface NovelServiceDeps {
   loreStore: LoreStore
   variables: VariableStoreFile
   assembler?: ContextAssembler
+}
+
+/** 项目元信息局部更新入参（首页"编辑项目"弹窗）。 */
+export interface ProjectPatch {
+  title?: string
+  description?: string
+  genre?: string
+  status?: ProjectStatus
+  /** 改类型会连带把工作流重置为新类型的内置模板（见 updateProject 注释）。 */
+  kind?: string
 }
 
 export class NovelService {
@@ -104,6 +119,122 @@ export class NovelService {
 
   listProjects(): Promise<BookSummary[]> {
     return this.store.listBooks()
+  }
+
+  // ── 项目元信息（P2 首页） ──
+
+  /**
+   * 局部更新项目元信息（首页"编辑项目"弹窗）。
+   *
+   * 只落 `book.json`，不触碰阶段产物与讲义。变更写审计。
+   *
+   * **改类型（kind）会连带重置工作流**：类型决定流程，换类型即换流程 ——
+   * 工作流回落到新类型的内置模板。已有阶段记录**保留**（同 id 的阶段进度
+   * 不丢，被移除的阶段记录留在 map 里但不再计入进度）。
+   */
+  async updateProject(bookId: string, patch: ProjectPatch): Promise<Book> {
+    const book = await this.store.loadBook(bookId)
+    const changes: string[] = []
+    let next: Book = book
+
+    if (patch.title !== undefined) {
+      const title = String(patch.title).trim()
+      if (!title) throw { code: 'INVALID_FIELD_TYPE', message: '项目名称不能为空' } as never
+      if (title.length > 60) throw { code: 'INVALID_FIELD_TYPE', message: '项目名称不能超过 60 字符' } as never
+      if (title !== book.title) {
+        next = { ...next, title, config: { ...next.config, title } }
+        changes.push(`title → ${title}`)
+      }
+    }
+    if (patch.description !== undefined) {
+      const description = String(patch.description).trim().slice(0, 200)
+      if (description !== (book.description ?? '')) {
+        next = { ...next, description }
+        changes.push('description updated')
+      }
+    }
+    if (patch.genre !== undefined) {
+      const genre = String(patch.genre).trim()
+      if (!genre) throw { code: 'INVALID_FIELD_TYPE', message: '题材不能为空' } as never
+      if (genre !== book.genre) {
+        next = { ...next, genre, config: { ...next.config, genre } }
+        changes.push(`genre → ${genre}`)
+      }
+    }
+    if (patch.status !== undefined) {
+      if (!isProjectStatus(patch.status)) {
+        throw { code: 'INVALID_FIELD_TYPE', message: `非法项目状态: ${String(patch.status)}` } as never
+      }
+      if (patch.status !== book.status) {
+        next = { ...next, status: patch.status }
+        changes.push(`status → ${patch.status}`)
+      }
+    }
+    if (patch.kind !== undefined) {
+      const kind = String(patch.kind).trim()
+      if (!kind) throw { code: 'INVALID_FIELD_TYPE', message: '项目类型不能为空' } as never
+      if (kind !== book.kind) {
+        next = { ...next, kind }
+        await this.store.writeWorkflow(bookId, instantiateWorkflow(builtinTemplateOf(kind), { id: `wf_${bookId}`, kind }))
+        changes.push(`kind → ${kind}（工作流已重置为该类型默认）`)
+      }
+    }
+    if (changes.length === 0) return book
+
+    await this.store.saveBook(next)
+    await this.store.appendAudit(bookId, {
+      at: new Date().toISOString(),
+      action: 'update',
+      phase: next.currentPhase,
+      actor: 'user',
+      detail: `project updated: ${changes.join('; ')}`,
+    })
+    return await this.store.loadBook(bookId)
+  }
+
+  /**
+   * 归档 / 取消归档。
+   * - 归档 → `archived`；
+   * - 取消归档 → 已开工（任一阶段非 locked）回 `in_progress`，否则回 `draft`。
+   */
+  async archiveProject(bookId: string, archived: boolean): Promise<Book> {
+    const book = await this.store.loadBook(bookId)
+    if (archived) return await this.updateProject(bookId, { status: 'archived' })
+    const started = Object.values(book.phases).some((record) => record.state !== 'locked')
+    return await this.updateProject(bookId, { status: started ? 'in_progress' : 'draft' })
+  }
+
+  /**
+   * 恢复项目类型的默认工作流（丢弃项目内的全部定制）。
+   * 阶段产物文件（docs/<phase>.md）**不删除** —— 用户改回流程后还能找回。
+   */
+  async resetWorkflow(bookId: string): Promise<Workflow> {
+    const book = await this.store.loadBook(bookId)
+    const kind = book.kind ?? DEFAULT_KIND_ID
+    const workflow = await this.store.writeWorkflow(bookId, instantiateWorkflow(builtinTemplateOf(kind), {
+      id: `wf_${bookId}`,
+      kind,
+    }))
+    await this.store.appendAudit(bookId, {
+      at: new Date().toISOString(),
+      action: 'update',
+      phase: book.currentPhase,
+      actor: 'user',
+      detail: `workflow reset to builtin template (kind=${kind})`,
+    })
+    return workflow
+  }
+
+  /** 流程进度（首页卡片进度条）：已完成阶段数 / 总阶段数。 */
+  async progressOf(bookId: string): Promise<{ done: number; total: number }> {
+    const book = await this.store.loadBook(bookId)
+    const order = await this.phaseOrder(bookId)
+    return progressOfPhases(book.phases, order)
+  }
+
+  /** 项目类型（缺省 course；供路由层回填类型名）。 */
+  async kindOf(bookId: string): Promise<string> {
+    return (await this.store.loadBook(bookId)).kind ?? DEFAULT_KIND_ID
   }
 
   /** 项目目录（向导状态等辅助文件落点）。 */

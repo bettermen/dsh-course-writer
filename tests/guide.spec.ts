@@ -109,15 +109,15 @@ describe('intent — rule channel', () => {
   })
 
   it('maps phase commands with params', () => {
-    expect(parseIntent('帮我生成世界观设定')?.params).toMatchObject({ phase: 'setting' })
-    expect(parseIntent('设计人设')?.params).toMatchObject({ phase: 'character' })
+    expect(parseIntent('帮我分析学情与前置知识')?.params).toMatchObject({ phase: 'setting' })
+    expect(parseIntent('设计教学目标')?.params).toMatchObject({ phase: 'character' })
     expect(parseIntent('写全书大纲')?.params).toMatchObject({ phase: 'outline' })
     expect(parseIntent('单元规划')?.params).toMatchObject({ phase: 'volume' })
     expect(parseIntent('第三章教案')?.params).toMatchObject({ phase: 'chapter' })
   })
 
   it('maps query and create commands', () => {
-    expect(parseIntent('林远现在什么境界')?.action).toBe('course_ledger')
+    expect(parseIntent('张同学现在什么进度')?.action).toBe('course_ledger')
     expect(parseIntent('记个灵感：雨夜剑冢')?.action).toBe('course_idea')
     expect(parseIntent('创建项目，写本都市课程')?.action).toBe('course_create_project')
     expect(parseIntent('全书多少字了')?.action).toBe('course_wordcount')

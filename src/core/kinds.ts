@@ -212,7 +212,7 @@ export function createCustomKind(input: CreateKindInput, existing: readonly Proj
     if (taken.has(rawId)) return { ok: false, error: invalid(`类型 id 已存在: ${rawId}`) }
   }
 
-  const baseId = rawId || slugify(label) || 'kind'
+  const baseId = rawId || kindSlug(label) || 'kind'
   let id = baseId
   let seq = 2
   while (taken.has(id) || BUILTIN_KIND_IDS.includes(id) || id === 'custom') {
@@ -228,7 +228,7 @@ export function createCustomKind(input: CreateKindInput, existing: readonly Proj
     const rawGenreId = String(raw?.id ?? '').trim().toLowerCase()
     let genreId = rawGenreId
     if (!genreId) {
-      genreId = slugify(genreLabel) || `genre-${seenGenre.size + 1}`
+      genreId = kindSlug(genreLabel) || `genre-${seenGenre.size + 1}`
     } else if (!GENRE_ID_RE.test(genreId)) {
       return { ok: false, error: invalid(`题材 id 非法: ${rawGenreId}`) }
     }
@@ -261,7 +261,7 @@ export function createCustomKind(input: CreateKindInput, existing: readonly Proj
 }
 
 /** 中文/英文标签 → 小写 slug（非 ASCII 时回退空串，由调用方兜底）。 */
-function slugify(text: string): string {
+export function kindSlug(text: string): string {
   return String(text)
     .trim()
     .toLowerCase()

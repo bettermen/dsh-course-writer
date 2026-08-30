@@ -115,7 +115,9 @@ interface IntentRule {
 
 /** 规则通道（P1 版；P2 增加模型通道兜底）。 */
 const INTENT_RULES: IntentRule[] = [
-  { pattern: /(写下一节|继续写教案|接着写教案|写第\s*\d+\s*节|写下一课)/, intent: 'write_chapter', action: 'course_write_chapter', confidence: 0.95, mutating: true },
+  // 「章」与「节/课」并列：4 种项目类型里小说/论文仍普遍用「第 N 章」。
+  // 「继续写/接着写」裸说法也要命中（用户最常这么说，带宾语的变体被其覆盖）。
+  { pattern: /(写下一\s*[章节课]|继续写|接着写|写第\s*\d+\s*[章节课])/, intent: 'write_chapter', action: 'course_write_chapter', confidence: 0.95, mutating: true },
   { pattern: /(去\s*AI\s*味|去味|改得自然|口语化|像人写)/, intent: 'depolish', action: 'course_depolish', confidence: 0.9, mutating: true },
   { pattern: /(润色|校对|改错字|修病句|错别字)/, intent: 'polish', action: 'course_revise', confidence: 0.9, mutating: true },
   { pattern: /(检查|诊断|哪里不好|问题|黄金三讲|导入怎么样|节奏)/, intent: 'diagnose', action: 'course_diagnose', confidence: 0.85 },

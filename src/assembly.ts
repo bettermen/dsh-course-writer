@@ -10,6 +10,8 @@ import type { Context } from '@deepseek-ai/cordis'
 import type { LoreService } from './core/lorebook/index.ts'
 import type { NovelService } from './core/novel/service.ts'
 import type { LlmClient } from './core/llm/client.ts'
+import type { KindStore } from './core/kinds-store.ts'
+import type { WorkflowStore } from './core/workflow/store.ts'
 import { registerNovelTools } from './tools/index.ts'
 
 export interface NovelServices {
@@ -18,6 +20,10 @@ export interface NovelServices {
   llm: LlmClient | null
   /** 项目目录（按项目隔离的 aux/账本/时间线文件落点）。 */
   bookDirOf(bookId: string): string
+  /** 项目类型注册表（内置 4 种 + 用户自定义，持久化在 kinds.json）。 */
+  kinds: KindStore
+  /** 工作流模板库（内置只读 + 用户模板 CRUD）。 */
+  workflows: WorkflowStore
 }
 
 export interface NovelAssemblyOptions {

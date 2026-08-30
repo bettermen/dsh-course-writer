@@ -80,7 +80,8 @@ export type PhaseMap = Record<PhaseId, PhaseRecord>
 export interface AuditEvent {
   seq: number
   at: string
-  action: 'enter' | 'submit' | 'reopen' | 'skip' | 'force' | 'rollback' | 'create' | 'delete' | 'reorder'
+  /** `update` 为 P2 新增：项目元信息改动（标题/简介/状态/类型）与工作流编辑。 */
+  action: 'enter' | 'submit' | 'reopen' | 'skip' | 'force' | 'rollback' | 'create' | 'delete' | 'reorder' | 'update'
   phase: PhaseId
   /** 触发方：user | agent | system。 */
   actor: 'user' | 'agent' | 'system'

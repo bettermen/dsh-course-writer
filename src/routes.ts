@@ -1,10 +1,34 @@
 /**
- * xiashuo — host HTTP 路由（P1-I，GUI 数据面）。
+ * xiashuo — host HTTP 路由（P1-I 建基，P2 扩展项目管理与工作流编辑）。
  * 单 prefix 路由 /api/xiashuo（WebRoute.path 无尾斜杠），handler 内按路径分派：
- *   GET  /projects                项目列表
- *   POST /projects                创建项目（fence 头校验）
- *   GET  /projects/<id>           项目详情 + 审计尾部
- *   GET  /projects/<id>/chapters/<no>  课时原文
+ *
+ *   ── 项目类型 ──
+ *   GET    /kinds                      类型清单（内置 4 种 + 自定义）
+ *   POST   /kinds                      新建自定义类型（fence）
+ *   PATCH  /kinds/<id>                 编辑自定义类型（内置只读）
+ *   DELETE /kinds/<id>                 删除自定义类型（内置只读）
+ *
+ *   ── 项目管理 ──
+ *   GET    /projects?kind=&status=&q=&sort=&order=   项目列表（筛选 + 排序 + 进度）
+ *   POST   /projects                   新建（title / kind / genre? / description?）
+ *   GET    /projects/<id>              项目详情（与列表同构，供编辑弹窗回填）
+ *   PATCH  /projects/<id>              编辑元信息
+ *   DELETE /projects/<id>?keepFiles=1  删除
+ *   POST   /projects/<id>/duplicate    复制项目
+ *   POST   /projects/<id>/archive      归档 / 取消归档
+ *   POST   /import                     导入 txt/md（body.kind 决定题材口径与初始流程）
+ *
+ *   ── 工作流 ──
+ *   GET    /projects/<id>/workflow               读项目流程
+ *   PUT    /projects/<id>/workflow               整体保存
+ *   POST   /projects/<id>/workflow/reset         恢复类型默认
+ *   POST   /projects/<id>/workflow/phases                    新增阶段
+ *   POST   /projects/<id>/workflow/phases/reorder            拖拽排序
+ *   POST   /projects/<id>/workflow/phases/<pid>/rename|update|delete
+ *   GET    /workflows?kind=&scope=               模板清单（内置只读 + 用户）
+ *   POST   /workflows                            另存为模板
+ *   GET / PATCH / DELETE  /workflows/<id>        模板读/改/删（内置只读）
+ *
  * 安全：CSRF/dns-rebinding fence（自定义头校验，仿 dsh-plugin-publisher）。
  * 门禁联动：assembly 未启用时返回 503（路由固定注册、handler 检查）。
  */
@@ -16,6 +40,15 @@ import { readOptional } from './core/atomic-file.ts'
 import { asResult } from './core/lorebook/service.ts'
 import { buildWritePrompt } from './core/write-prompt.ts'
 import { genreLabel } from './core/genres.ts'
+import { BUILTIN_KINDS, DEFAULT_KIND_ID, kindById } from './core/kinds.ts'
+import { decorateProject, parseProjectQuery, queryProjects } from './core/project/query.ts'
+import type { ProjectListItem } from './core/project/query.ts'
+import { toSummary } from './core/novel/store.ts'
+import type { ProjectPatch } from './core/novel/service.ts'
+import type { BookSummary } from './core/novel/types.ts'
+import { isProjectStatus } from './core/novel/status.ts'
+import { createPhase, insertPhase, isPhaseGate, removePhase, renamePhase, reorderPhase, updatePhase, validateWorkflow } from './core/workflow/schema.ts'
+import type { Workflow, WorkflowArtifact, WorkflowPhase } from './core/workflow/schema.ts'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { readFile } from 'node:fs/promises'
@@ -123,6 +156,41 @@ export function registerNovelRoutes(ctx: Context, assembly: NovelAssembly): void
       }
       return String(error)
     }
+    /** 领域错误的状态码映射（校验类 400，缺失类 404，状态冲突 409）。 */
+    const statusOfError = (error: unknown): number => {
+      const code = (error as { code?: unknown })?.code
+      if (code === 'ENTRY_NOT_FOUND' || code === 'SHARE_NOT_FOUND') return 404
+      if (code === 'INVALID_STATE') return 409
+      return 400
+    }
+    /** 统一失败出口：领域错误按 code 映射状态码，未知错误按调用方给的兜底码。 */
+    const failDomain = (res: ServerResponse, error: unknown, fallback: 'INVALID_FIELD_TYPE' | 'IO_FAILURE'): void => {
+      const code = (error as { code?: unknown })?.code
+      if (typeof code === 'string') fail(res, statusOfError(error), code, errText(error))
+      else fail(res, 400, fallback, errText(error))
+    }
+    /** 类型 id → 中文名（未知类型回退 id；类型表读取失败时回退内置表）。 */
+    const kindLabelOf = async (svc: NovelServices, kindId: string): Promise<string> => {
+      const kinds = await svc.kinds.list().catch(() => [...BUILTIN_KINDS])
+      return kindById(kinds, kindId)?.label ?? kindId
+    }
+    /** 单个项目 → 首页卡片（补类型名与流程进度）。 */
+    const itemOf = async (svc: NovelServices, summary: BookSummary): Promise<ProjectListItem> => {
+      const progress = await svc.novel.progressOf(summary.id).catch(() => ({ done: 0, total: 0 }))
+      return decorateProject(summary, { kindLabel: await kindLabelOf(svc, summary.kind), progress })
+    }
+    /** 一批项目 → 首页卡片列表（单个项目出错不影响其余）。 */
+    const itemsOf = async (svc: NovelServices, summaries: readonly BookSummary[]): Promise<ProjectListItem[]> => {
+      const kinds = await svc.kinds.list().catch(() => [...BUILTIN_KINDS])
+      const items: ProjectListItem[] = []
+      for (const summary of summaries) {
+        const progress = await svc.novel.progressOf(summary.id).catch(() => ({ done: 0, total: 0 }))
+        items.push(decorateProject(summary, { kindLabel: kindById(kinds, summary.kind)?.label ?? summary.kind, progress }))
+      }
+      return items
+    }
+    /** 请求 URL 的查询参数（列表筛选用）。 */
+    const searchParamsOf = (req: IncomingMessage): URLSearchParams => new URL(req.url ?? '/', 'http://localhost').searchParams
 
     wctx.effect(() => wctx.webServer.register({
       kind: 'prefix',
@@ -130,28 +198,258 @@ export function registerNovelRoutes(ctx: Context, assembly: NovelAssembly): void
       handler: async (req: IncomingMessage, res: ServerResponse) => {
         const { segments, projectId, section, noText } = parseNovelPath(req.url)
 
-        // GET /projects
+        // ── 项目类型（/kinds） ──
+        // GET /kinds：类型清单（内置 4 种 + 用户自定义）
+        if (req.method === 'GET' && segments.length === 1 && segments[0] === 'kinds') {
+          const svc = novelOf(res)
+          if (!svc) return
+          try {
+            writeJson(res, 200, { ok: true, value: await svc.kinds.list() })
+          } catch (error) {
+            fail(res, 500, 'IO_FAILURE', errText(error))
+          }
+          return
+        }
+        // POST /kinds：新建自定义类型
+        if (req.method === 'POST' && segments.length === 1 && segments[0] === 'kinds') {
+          if (!trusted(req)) return fail(res, 403, 'INVALID_STATE', 'forbidden')
+          const svc = novelOf(res)
+          if (!svc) return
+          try {
+            const body = await readJsonBody(req)
+            const kind = await svc.kinds.create({
+              label: String(body.label ?? ''),
+              ...(body.id !== undefined ? { id: String(body.id) } : {}),
+              ...(body.labelEn !== undefined ? { labelEn: String(body.labelEn) } : {}),
+              ...(body.icon !== undefined ? { icon: String(body.icon) } : {}),
+              ...(body.description !== undefined ? { description: String(body.description) } : {}),
+              ...(body.templateId !== undefined ? { templateId: String(body.templateId) } : {}),
+              genres: Array.isArray(body.genres)
+                ? body.genres.map((genre) => ({ id: typeof (genre as { id?: unknown })?.id === 'string' ? (genre as { id: string }).id : undefined, label: String((genre as { label?: unknown })?.label ?? '') }))
+                : [],
+            })
+            writeJson(res, 200, { ok: true, value: kind })
+          } catch (error) {
+            failDomain(res, error, 'INVALID_FIELD_TYPE')
+          }
+          return
+        }
+        // PATCH /kinds/<id>：编辑自定义类型（内置只读）
+        if (req.method === 'PATCH' && segments.length === 2 && segments[0] === 'kinds' && segments[1]) {
+          if (!trusted(req)) return fail(res, 403, 'INVALID_STATE', 'forbidden')
+          const svc = novelOf(res)
+          if (!svc) return
+          try {
+            const body = await readJsonBody(req)
+            const kind = await svc.kinds.update(segments[1]!, {
+              ...(body.label !== undefined ? { label: String(body.label) } : {}),
+              ...(body.labelEn !== undefined ? { labelEn: String(body.labelEn) } : {}),
+              ...(body.icon !== undefined ? { icon: String(body.icon) } : {}),
+              ...(body.description !== undefined ? { description: String(body.description) } : {}),
+              ...(body.templateId !== undefined ? { templateId: String(body.templateId) } : {}),
+              ...(Array.isArray(body.genres)
+                ? { genres: body.genres.map((genre) => ({ id: typeof (genre as { id?: unknown })?.id === 'string' ? (genre as { id: string }).id : undefined, label: String((genre as { label?: unknown })?.label ?? '') })) }
+                : {}),
+            })
+            writeJson(res, 200, { ok: true, value: kind })
+          } catch (error) {
+            failDomain(res, error, 'INVALID_FIELD_TYPE')
+          }
+          return
+        }
+        // DELETE /kinds/<id>：删除自定义类型（内置只读）
+        if (req.method === 'DELETE' && segments.length === 2 && segments[0] === 'kinds' && segments[1]) {
+          if (!trusted(req)) return fail(res, 403, 'INVALID_STATE', 'forbidden')
+          const svc = novelOf(res)
+          if (!svc) return
+          try {
+            const removed = await svc.kinds.remove(segments[1]!)
+            if (!removed) return fail(res, 404, 'ENTRY_NOT_FOUND', `类型不存在: ${segments[1]!}`)
+            writeJson(res, 200, { ok: true, value: { deleted: true, id: segments[1]! } })
+          } catch (error) {
+            failDomain(res, error, 'INVALID_FIELD_TYPE')
+          }
+          return
+        }
+
+        // ── 项目列表与新建 ──
+        // GET /projects?kind=&status=&q=&sort=&order=：首页卡片列表
         if (req.method === 'GET' && segments.length === 1 && segments[0] === 'projects') {
           const svc = novelOf(res)
           if (!svc) return
           try {
-            writeJson(res, 200, { ok: true, value: await svc.novel.listProjects() })
+            const query = parseProjectQuery(searchParamsOf(req))
+            const all = await svc.novel.listProjects()
+            writeJson(res, 200, { ok: true, value: await itemsOf(svc, queryProjects(all, query)) })
           } catch (error) {
-            fail(res, 500, 'IO_FAILURE', String(error))
+            fail(res, 500, 'IO_FAILURE', errText(error))
           }
           return
         }
-        // POST /projects
+        // POST /projects：新建（title 必填；kind 缺省 course；genre 缺省取该类型首个题材）
         if (req.method === 'POST' && segments.length === 1 && segments[0] === 'projects') {
           if (!trusted(req)) return fail(res, 403, 'INVALID_STATE', 'forbidden')
           const svc = novelOf(res)
           if (!svc) return
           try {
             const body = await readJsonBody(req)
-            const book = await svc.novel.createProject(String(body.title ?? ''), String(body.genre ?? 'fantasy'))
-            writeJson(res, 200, { ok: true, value: book })
+            const title = String(body.title ?? '').trim()
+            if (!title) return fail(res, 400, 'INVALID_FIELD_TYPE', '项目名称不能为空')
+            if (title.length > 60) return fail(res, 400, 'INVALID_FIELD_TYPE', '项目名称不能超过 60 字符')
+            const kinds = await svc.kinds.list().catch(() => [...BUILTIN_KINDS])
+            const kind = String(body.kind ?? '').trim() || 'course'
+            const genre = String(body.genre ?? '').trim() || (kindById(kinds, kind)?.genres[0]?.id ?? 'general')
+            const book = await svc.novel.createProject(title, genre, kind)
+            if (body.description !== undefined) {
+              await svc.novel.updateProject(book.id, { description: String(body.description) })
+            }
+            writeJson(res, 200, { ok: true, value: await itemOf(svc, toSummary(await svc.novel.load(book.id))) })
           } catch (error) {
-            fail(res, 400, 'INVALID_FIELD_TYPE', String(error))
+            failDomain(res, error, 'INVALID_FIELD_TYPE')
+          }
+          return
+        }
+        // GET /projects/<id>：单个项目详情（首页「编辑项目」弹窗回填用，与列表同构）
+        if (req.method === 'GET' && segments.length === 2 && segments[0] === 'projects' && projectId) {
+          const svc = novelOf(res)
+          if (!svc) return
+          try {
+            const summary = toSummary(await svc.novel.load(projectId))
+            writeJson(res, 200, { ok: true, value: await itemOf(svc, summary) })
+          } catch (error) {
+            failDomain(res, error, 'IO_FAILURE')
+          }
+          return
+        }
+        // PATCH /projects/<id>：编辑项目元信息（title/description/status/kind/genre）
+        if (req.method === 'PATCH' && segments.length === 2 && segments[0] === 'projects' && projectId) {
+          if (!trusted(req)) return fail(res, 403, 'INVALID_STATE', 'forbidden')
+          const svc = novelOf(res)
+          if (!svc) return
+          try {
+            const body = await readJsonBody(req)
+            const patch: ProjectPatch = {}
+            for (const field of ['title', 'description', 'genre', 'kind'] as const) {
+              if (body[field] !== undefined) patch[field] = String(body[field])
+            }
+            if (body.status !== undefined) {
+              if (!isProjectStatus(body.status)) return fail(res, 400, 'INVALID_FIELD_TYPE', `非法项目状态: ${String(body.status)}`)
+              patch.status = body.status
+            }
+            if (Object.keys(patch).length === 0) return fail(res, 400, 'INVALID_FIELD_TYPE', '没有需要更新的字段')
+            const book = await svc.novel.updateProject(projectId, patch)
+            writeJson(res, 200, { ok: true, value: await itemOf(svc, toSummary(book)) })
+          } catch (error) {
+            failDomain(res, error, 'INVALID_FIELD_TYPE')
+          }
+          return
+        }
+        // DELETE /projects/<id>?keepFiles=1：删除项目（REST 风格，与 POST /delete 等价）
+        if (req.method === 'DELETE' && segments.length === 2 && segments[0] === 'projects' && projectId) {
+          if (!trusted(req)) return fail(res, 403, 'INVALID_STATE', 'forbidden')
+          const svc = novelOf(res)
+          if (!svc) return
+          try {
+            const keepFiles = searchParamsOf(req).get('keepFiles') === '1'
+            const result = await svc.novel.deleteProject(projectId, keepFiles)
+            writeJson(res, 200, { ok: true, value: result })
+          } catch (error) {
+            failDomain(res, error, 'IO_FAILURE')
+          }
+          return
+        }
+
+        // ── 工作流模板库（/workflows） ──
+        // GET /workflows?kind=&scope=：模板清单（内置只读 + 用户自定义）
+        if (req.method === 'GET' && segments.length === 1 && segments[0] === 'workflows') {
+          const svc = novelOf(res)
+          if (!svc) return
+          try {
+            const params = searchParamsOf(req)
+            const kind = params.get('kind')?.trim() || undefined
+            const scope = params.get('scope')?.trim()
+            const list = await svc.workflows.listAll({
+              ...(kind !== undefined ? { kind } : {}),
+              scope: scope === 'builtin' || scope === 'user' ? scope : 'all',
+            })
+            writeJson(res, 200, { ok: true, value: list })
+          } catch (error) {
+            fail(res, 500, 'IO_FAILURE', errText(error))
+          }
+          return
+        }
+        // POST /workflows：另存为模板（body: { projectId, name } 或 { workflow, name }）
+        if (req.method === 'POST' && segments.length === 1 && segments[0] === 'workflows') {
+          if (!trusted(req)) return fail(res, 403, 'INVALID_STATE', 'forbidden')
+          const svc = novelOf(res)
+          if (!svc) return
+          try {
+            const body = await readJsonBody(req)
+            const name = String(body.name ?? '').trim()
+            if (!name) return fail(res, 400, 'INVALID_FIELD_TYPE', '模板名称不能为空')
+            const sourceId = typeof body.projectId === 'string' ? body.projectId.trim() : ''
+            let source: Workflow | undefined
+            if (sourceId) source = await svc.novel.workflowOf(sourceId)
+            else if (body.workflow !== undefined) {
+              const parsed = validateWorkflow(body.workflow)
+              if (!parsed.ok) return fail(res, 400, parsed.error.code, parsed.error.message)
+              source = parsed.value
+            }
+            if (!source) return fail(res, 400, 'INVALID_FIELD_TYPE', '缺少模板来源（projectId 或 workflow）')
+            const template = await svc.workflows.createFrom(source, {
+              name,
+              ...(body.nameEn !== undefined ? { nameEn: String(body.nameEn) } : {}),
+              ...(body.kind !== undefined ? { kind: String(body.kind) } : {}),
+            })
+            writeJson(res, 200, { ok: true, value: template })
+          } catch (error) {
+            failDomain(res, error, 'INVALID_FIELD_TYPE')
+          }
+          return
+        }
+        // GET /workflows/<id>：读模板（内置模板也可读）
+        if (req.method === 'GET' && segments.length === 2 && segments[0] === 'workflows' && segments[1]) {
+          const svc = novelOf(res)
+          if (!svc) return
+          try {
+            const template = await svc.workflows.read(segments[1]!)
+            if (!template) return fail(res, 404, 'ENTRY_NOT_FOUND', `模板不存在: ${segments[1]!}`)
+            writeJson(res, 200, { ok: true, value: template })
+          } catch (error) {
+            failDomain(res, error, 'IO_FAILURE')
+          }
+          return
+        }
+        // PATCH /workflows/<id>：改模板（内置只读）
+        if (req.method === 'PATCH' && segments.length === 2 && segments[0] === 'workflows' && segments[1]) {
+          if (!trusted(req)) return fail(res, 403, 'INVALID_STATE', 'forbidden')
+          const svc = novelOf(res)
+          if (!svc) return
+          try {
+            const body = await readJsonBody(req)
+            const template = await svc.workflows.update(segments[1]!, {
+              ...(body.name !== undefined ? { name: String(body.name) } : {}),
+              ...(body.nameEn !== undefined ? { nameEn: String(body.nameEn) } : {}),
+              ...(body.kind !== undefined ? { kind: String(body.kind) } : {}),
+              ...(Array.isArray(body.phases) ? { phases: body.phases as WorkflowPhase[] } : {}),
+            })
+            writeJson(res, 200, { ok: true, value: template })
+          } catch (error) {
+            failDomain(res, error, 'INVALID_FIELD_TYPE')
+          }
+          return
+        }
+        // DELETE /workflows/<id>：删模板（内置只读）
+        if (req.method === 'DELETE' && segments.length === 2 && segments[0] === 'workflows' && segments[1]) {
+          if (!trusted(req)) return fail(res, 403, 'INVALID_STATE', 'forbidden')
+          const svc = novelOf(res)
+          if (!svc) return
+          try {
+            const removed = await svc.workflows.remove(segments[1]!)
+            if (!removed) return fail(res, 404, 'ENTRY_NOT_FOUND', `模板不存在: ${segments[1]!}`)
+            writeJson(res, 200, { ok: true, value: { deleted: true, id: segments[1]! } })
+          } catch (error) {
+            failDomain(res, error, 'INVALID_FIELD_TYPE')
           }
           return
         }
@@ -161,7 +459,7 @@ export function registerNovelRoutes(ctx: Context, assembly: NovelAssembly): void
           const svc = novelOf(res)
           if (!svc) return
           try {
-            const book = await svc.novel.createProject('青云问道', 'fantasy')
+            const book = await svc.novel.createProject('青云问道', 'general')
             const dir = join(dirname(fileURLToPath(import.meta.url)), '..', 'assets', 'samples', 'demo-book', 'lorebook')
             const entries = JSON.parse(await readOptional(join(dir, 'entries.json')) ?? '{"data":[]}')
             const list = Array.isArray(entries) ? entries : (entries as { data: unknown[] }).data ?? []
@@ -182,12 +480,14 @@ export function registerNovelRoutes(ctx: Context, assembly: NovelAssembly): void
             const body = await readJsonBody(req)
             const fileName = String(body.fileName ?? '').trim()
             const content = String(body.content ?? '')
+            // P2：导入也带项目类型（决定题材映射口径与初始工作流模板）
+            const importKind = String(body.kind ?? '').trim() || DEFAULT_KIND_ID
             if (!content.trim()) return fail(res, 400, 'IMPORT_FILE_EMPTY', '文件内容为空')
             if (content.length > 8_000_000) return fail(res, 400, 'INVALID_FIELD_TYPE', '文件过大（超过 8MB），请拆分后导入')
             const { parseBookFile, BookImporter } = await import('./core/importer/index.js')
-            const parsed = parseBookFile(fileName || '未命名课程', content)
+            const parsed = parseBookFile(fileName || '未命名课程', content, { kind: importKind })
             const importer = new BookImporter({
-              createProject: (title, genre) => svc.novel.createProject(title, genre),
+              createProject: (title, genre, kind) => svc.novel.createProject(title, genre, kind),
               saveChapter: (id, no, title, text) => svc.novel.saveChapter(id, no, title, text),
               deleteProject: (id) => svc.novel.deleteProject(id, false),
             })
@@ -320,6 +620,123 @@ export function registerNovelRoutes(ctx: Context, assembly: NovelAssembly): void
             writeJson(res, 200, { ok: true, value: await svc.lore.listGroups() })
           } catch (error) {
             fail(res, 500, 'IO_FAILURE', String(error))
+          }
+          return
+        }
+        // ── 项目工作流（必须在「GET /projects/<id>/<任意 section>」兜底分支之前） ──
+        // GET /projects/<id>/workflow
+        if (req.method === 'GET' && segments.length === 3 && segments[0] === 'projects' && segments[2] === 'workflow' && projectId) {
+          const svc = novelOf(res)
+          if (!svc) return
+          try {
+            writeJson(res, 200, { ok: true, value: await svc.novel.workflowOf(projectId) })
+          } catch (error) {
+            failDomain(res, error, 'IO_FAILURE')
+          }
+          return
+        }
+        // PUT /projects/<id>/workflow：整体保存（流程编辑器"保存"按钮）
+        if (req.method === 'PUT' && segments.length === 3 && segments[0] === 'projects' && segments[2] === 'workflow' && projectId) {
+          if (!trusted(req)) return fail(res, 403, 'INVALID_STATE', 'forbidden')
+          const svc = novelOf(res)
+          if (!svc) return
+          try {
+            const body = await readJsonBody(req)
+            const parsed = validateWorkflow(body)
+            if (!parsed.ok) return fail(res, 400, parsed.error.code, parsed.error.message)
+            // id/scope 以服务端为准，防止客户端把项目工作流伪造成内置模板
+            const workflow = await svc.novel.saveWorkflow(projectId, { ...parsed.value, id: `wf_${projectId}`, scope: 'project' })
+            writeJson(res, 200, { ok: true, value: workflow })
+          } catch (error) {
+            failDomain(res, error, 'INVALID_FIELD_TYPE')
+          }
+          return
+        }
+        // POST /projects/<id>/workflow/reset：恢复类型默认流程
+        if (req.method === 'POST' && segments.length === 4 && segments[0] === 'projects' && segments[2] === 'workflow' && segments[3] === 'reset' && projectId) {
+          if (!trusted(req)) return fail(res, 403, 'INVALID_STATE', 'forbidden')
+          const svc = novelOf(res)
+          if (!svc) return
+          try {
+            writeJson(res, 200, { ok: true, value: await svc.novel.resetWorkflow(projectId) })
+          } catch (error) {
+            failDomain(res, error, 'IO_FAILURE')
+          }
+          return
+        }
+        // POST /projects/<id>/workflow/phases：新增阶段（body: { name, index?, id?, gate? }）
+        if (req.method === 'POST' && segments.length === 4 && segments[0] === 'projects' && segments[2] === 'workflow' && segments[3] === 'phases' && projectId) {
+          if (!trusted(req)) return fail(res, 403, 'INVALID_STATE', 'forbidden')
+          const svc = novelOf(res)
+          if (!svc) return
+          try {
+            const body = await readJsonBody(req)
+            const current = await svc.novel.workflowOf(projectId)
+            const index = typeof body.index === 'number' && Number.isFinite(body.index) ? body.index : current.phases.length
+            const phase = { ...createPhase(current, String(body.name ?? ''), String(body.id ?? body.name ?? 'phase')), ...(typeof body.gate === 'string' ? { gate: body.gate as never } : {}) }
+            const next = insertPhase(current, phase, index)
+            if (!next.ok) return fail(res, 400, next.error.code, next.error.message)
+            writeJson(res, 200, { ok: true, value: await svc.novel.saveWorkflow(projectId, next.value) })
+          } catch (error) {
+            failDomain(res, error, 'INVALID_FIELD_TYPE')
+          }
+          return
+        }
+        // POST /projects/<id>/workflow/phases/reorder：拖拽排序（body: { from, to }）
+        if (req.method === 'POST' && segments.length === 5 && segments[0] === 'projects' && segments[2] === 'workflow' && segments[3] === 'phases' && segments[4] === 'reorder' && projectId) {
+          if (!trusted(req)) return fail(res, 403, 'INVALID_STATE', 'forbidden')
+          const svc = novelOf(res)
+          if (!svc) return
+          try {
+            const body = await readJsonBody(req)
+            const current = await svc.novel.workflowOf(projectId)
+            const next = reorderPhase(current, Number(body.from), Number(body.to))
+            if (!next.ok) return fail(res, 400, next.error.code, next.error.message)
+            writeJson(res, 200, { ok: true, value: await svc.novel.saveWorkflow(projectId, next.value) })
+          } catch (error) {
+            failDomain(res, error, 'INVALID_FIELD_TYPE')
+          }
+          return
+        }
+        // POST /projects/<id>/workflow/phases/<phaseId>/<rename|update|delete>
+        if (req.method === 'POST' && segments.length === 6 && segments[0] === 'projects' && segments[2] === 'workflow' && segments[3] === 'phases' && segments[4] && segments[5] && projectId) {
+          if (!trusted(req)) return fail(res, 403, 'INVALID_STATE', 'forbidden')
+          const svc = novelOf(res)
+          if (!svc) return
+          const phaseId = segments[4]!
+          const action = segments[5]!
+          try {
+            const current = await svc.novel.workflowOf(projectId)
+            if (action === 'rename') {
+              const body = await readJsonBody(req)
+              const next = renamePhase(current, phaseId, String(body.name ?? ''))
+              if (!next.ok) return fail(res, 400, next.error.code, next.error.message)
+              writeJson(res, 200, { ok: true, value: await svc.novel.saveWorkflow(projectId, next.value) })
+              return
+            }
+            if (action === 'delete') {
+              const next = removePhase(current, phaseId)
+              if (!next.ok) return fail(res, 400, next.error.code, next.error.message)
+              writeJson(res, 200, { ok: true, value: await svc.novel.saveWorkflow(projectId, next.value) })
+              return
+            }
+            if (action === 'update') {
+              const body = await readJsonBody(req)
+              const patch: Partial<Omit<WorkflowPhase, 'id'>> = {}
+              for (const field of ['name', 'description', 'prompt', 'rubric'] as const) {
+                if (body[field] !== undefined) patch[field] = String(body[field])
+              }
+              if (body.gate !== undefined && isPhaseGate(body.gate)) patch.gate = body.gate
+              if (body.optional !== undefined) patch.optional = body.optional === true
+              if (Array.isArray(body.artifacts)) patch.artifacts = body.artifacts as WorkflowArtifact[]
+              const next = updatePhase(current, phaseId, patch)
+              if (!next.ok) return fail(res, 400, next.error.code, next.error.message)
+              writeJson(res, 200, { ok: true, value: await svc.novel.saveWorkflow(projectId, next.value) })
+              return
+            }
+            fail(res, 400, 'INVALID_FIELD_TYPE', 'unknown action')
+          } catch (error) {
+            failDomain(res, error, 'INVALID_FIELD_TYPE')
           }
           return
         }
@@ -502,6 +919,38 @@ export function registerNovelRoutes(ctx: Context, assembly: NovelAssembly): void
             writeJson(res, 200, { ok: true, value: { original: text, polished } })
           } catch (error) {
             fail(res, 500, 'IO_FAILURE', String(error))
+          }
+          return
+        }
+        // POST /projects/<id>/duplicate：复制项目（含 config 与阶段设定，讲义不复制）
+        if (req.method === 'POST' && segments.length === 3 && segments[0] === 'projects' && segments[2] === 'duplicate' && projectId) {
+          if (!trusted(req)) return fail(res, 403, 'INVALID_STATE', 'forbidden')
+          const svc = novelOf(res)
+          if (!svc) return
+          try {
+            const body = await readJsonBody(req)
+            const book = await svc.novel.cloneProject(projectId, {
+              ...(body.title !== undefined ? { title: String(body.title) } : {}),
+              ...(body.genre !== undefined ? { genre: String(body.genre) } : {}),
+              ...(body.kind !== undefined ? { kind: String(body.kind) } : {}),
+            })
+            writeJson(res, 200, { ok: true, value: await itemOf(svc, toSummary(book)) })
+          } catch (error) {
+            failDomain(res, error, 'IO_FAILURE')
+          }
+          return
+        }
+        // POST /projects/<id>/archive：归档 / 取消归档（body: { archived: boolean }）
+        if (req.method === 'POST' && segments.length === 3 && segments[0] === 'projects' && segments[2] === 'archive' && projectId) {
+          if (!trusted(req)) return fail(res, 403, 'INVALID_STATE', 'forbidden')
+          const svc = novelOf(res)
+          if (!svc) return
+          try {
+            const body = await readJsonBody(req)
+            const book = await svc.novel.archiveProject(projectId, body.archived !== false)
+            writeJson(res, 200, { ok: true, value: await itemOf(svc, toSummary(book)) })
+          } catch (error) {
+            failDomain(res, error, 'INVALID_FIELD_TYPE')
           }
           return
         }

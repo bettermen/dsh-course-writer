@@ -237,11 +237,12 @@ interface Project {
 | PATCH / DELETE | `/kinds/<id>` | 编辑/删除自定义类型（内置类型拒绝删除） |
 | GET | `/projects?kind=&status=&q=&sort=` | 项目列表（返回含 status、进度、类型） |
 | POST | `/projects` | 新建（title, kind, genre?, description?, templateId?） |
-| GET | `/projects/<id>` | 项目详情 |
+| GET | `/projects/<id>` | 项目详情（与列表同构，供编辑弹窗回填） |
 | PATCH | `/projects/<id>` | 编辑（title/description/status/kind/genre） |
-| POST | `/projects/<id>/delete` | 删除（body: `{ keepFiles }`） |
+| DELETE | `/projects/<id>?keepFiles=1` | 删除 —— **用 DELETE 而非 PRD 原稿的 `POST /delete`**，与 REST 语义一致 |
 | POST | `/projects/<id>/duplicate` | 复制项目 |
 | POST | `/projects/<id>/archive` | 归档 / 取消归档（快捷动作） |
+| POST | `/import` | 导入 txt/md —— **新增 `kind` 入参**（决定题材口径与初始流程） |
 
 ### 工作流
 
@@ -250,13 +251,22 @@ interface Project {
 | GET | `/projects/<id>/workflow` | 读项目流程 |
 | PUT | `/projects/<id>/workflow` | 整体保存（编辑器保存按钮） |
 | POST | `/projects/<id>/workflow/reset` | 恢复类型默认 |
+| POST | `/projects/<id>/workflow/phases` | 新增阶段（body 支持 `index` 指定插入位置） |
+| POST | `/projects/<id>/workflow/phases/reorder` | 拖拽排序 |
+| POST | `/projects/<id>/workflow/phases/<pid>/rename\|update\|delete` | 阶段改名 / 改属性 / 删除（最后一个阶段拒绝） |
 | GET | `/workflows?kind=&scope=` | 模板列表（内置 + 用户） |
 | POST | `/workflows` | 另存为模板（body: `{ projectId, name }` 或完整 workflow） |
 | GET / PATCH / DELETE | `/workflows/<id>` | 模板读/改/删（内置只读） |
 
+> 阶段级接口**独立于** `PUT /workflow` 之外，是为了让前端做单步编辑（拖拽、改名各走各的），
+> 避免每次都整体 PUT 带来的写放大与并发覆盖。
+
 ### 现有路由保持不变
 
-`/lorebook/*`、`/projects/<id>/chapters/*`、`/export`、`/share/*`、`/import`、`/demo` 全部沿用，**只扩展不破坏**。
+`/lorebook/*`、`/projects/<id>/chapters/*`、`/export`、`/share/*`、`/demo` 全部沿用，**只扩展不破坏**。
+
+> **一处行为变更**：`/import` 现在接受 `kind`，题材按类型口径解析 —— 同一个「科幻」，
+> 小说类型 → `kehuan`，课程类型 → `general`。不传 `kind` 时行为与旧版完全一致，向后兼容。
 
 ---
 
@@ -312,8 +322,14 @@ interface Project {
 |---|---|---|---|
 | **P0 领域模型** | `core/kinds.ts`（类型注册表 + 题材联动）、`core/workflow/schema.ts`（PhaseGate/WorkflowPhase/Workflow）、4 套内置模板 JSON、内置模板加载器 | 可单测的纯常量 + 纯函数 | 单测：模板完整性（每类型 ≥1 阶段、id 唯一、内置只读）、类型→题材映射 |
 | **P1 工作流动态化**（已完成） | `PhaseId → string`、`DEFAULT_PHASE_ORDER` 降级为默认模板、引擎 `canEnter/nextPhaseOf` 改为接收顺序数组、项目 `workflow.json` 读写 + 惰性迁移 | `core/workflow/engine.ts` + `core/workflow/store.ts` | 单测：动态顺序下的门禁/推进/回退全绿；老项目迁移幂等 |
-| **P2 项目模型升级** | `Project` 新增 kind/status/description/stats，`book.json` schemaVersion 2 迁移，项目索引 `index.json` | `core/novel/*` + `core/project/*` | 单测：v1→v2 迁移、索引重建、状态映射 |
-| **P3 后端 API** | `/kinds`、`/projects` CRUD + 筛选排序、`/projects/<id>/workflow`、`/workflows` 模板 CRUD | `src/routes.ts` | 单测：routes.spec 覆盖新路由；旧路由回归全绿 |
+| **P2 项目模型升级**（部分完成 ⚠️） | `Project` 新增 kind/status/description/stats，`book.json` schemaVersion 2 迁移，项目索引 `index.json` | `core/novel/*` + `core/project/*` | 单测：v1→v2 迁移、索引重建、状态映射 |
+| **P3 后端 API**（✅ 已完成） | `/kinds`、`/projects` CRUD + 筛选排序、`/projects/<id>/workflow`、`/workflows` 模板 CRUD | `src/routes.ts` | 单测：routes.spec 覆盖新路由；旧路由回归全绿 |
+
+> **P2 的取舍（需确认）**：P2 原稿的 `schemaVersion 2 迁移` 与 `index.json 索引` 属于**纯性能/整洁度优化**，
+> 尚未启动；但首页卡片必需的 `status`（五态 + 旧三态惰性归一）与 `description` 已随 P3 一并落地 ——
+> 因为 API 层要返回这两个字段，先做模型才谈得上接口。
+> 现状：`status` 走**读时归一**（老 `book.json` 零重写，见 `core/novel/status.ts`），
+> `index.json` 仍缺（列表每次遍历 `projects/` 全目录，项目数上百后再补不迟）。
 | **P4 首页 UI** | 项目网格/列表、卡片、搜索筛选排序、新建/编辑/删除弹窗、空态、面包屑 | `src/client/home.tsx` + 布局路由切换 | typecheck + 手动冒烟（本机 DSH） |
 | **P5 流程编辑器 UI** | 阶段拖拽排序、增删改名、属性面板、恢复默认、另存为模板、模板管理 | `src/client/workflow-editor.tsx` | typecheck + 手动冒烟 |
 | **P6 Agent 侧** | `course_workflow` / `course_project_update` / `course_project_delete` 工具、`course_create_project` 扩参、SKILL.md 改造 | `src/tools/*` + `assets/skills/*` | 单测 + 对话实测（"帮我加一个阶段"） |

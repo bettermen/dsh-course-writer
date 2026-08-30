@@ -4,10 +4,12 @@
  * BookImporter：解析结果 → 建书 → 逐章写入（走 NovelService.saveChapter 完整管线：
  * 字数统计 / 账本 / 变量 / 审计）。IO 通过 ImportDeps 注入，可单测（fake 或真实 store）。
  */
+import { DEFAULT_KIND_ID } from '../kinds.ts'
 import type { ParsedBook } from './parse.ts'
 
 export interface ImportDeps {
-  createProject(title: string, genre: string): Promise<{ id: string }>
+  /** 第三参 `kind` 为 P2 新增（项目类型）；旧实现忽略即可，题材已按类型解析好。 */
+  createProject(title: string, genre: string, kind?: string): Promise<{ id: string }>
   saveChapter(bookId: string, chapterNo: number, title: string, text: string): Promise<{ words: number }>
   /** 可选：导入中途失败时清理半成品项目（连同讲义删除）。 */
   deleteProject?(bookId: string): Promise<unknown>
@@ -17,6 +19,8 @@ export interface ImportResult {
   bookId: string
   title: string
   genre: string
+  /** 项目类型 id（建书时透传；缺省 course）。 */
+  kind: string
   chapterCount: number
   totalWords: number
   /** 内容为空的课时数（仍落盘占位，报告用）。 */
@@ -30,7 +34,8 @@ export class BookImporter {
     if (parsed.chapters.length === 0) {
       throw { code: 'NO_IMPORTABLE_ENTRIES', message: '未能识别到课时内容' } as never
     }
-    const book = await this.deps.createProject(parsed.title || '未命名课程', parsed.genre)
+    const kind = parsed.kind || DEFAULT_KIND_ID
+    const book = await this.deps.createProject(parsed.title || '未命名课程', parsed.genre, kind)
     try {
       let totalWords = 0
       let emptyChapters = 0
@@ -44,6 +49,7 @@ export class BookImporter {
         bookId: book.id,
         title: parsed.title,
         genre: parsed.genre,
+        kind,
         chapterCount: parsed.chapters.length,
         totalWords,
         emptyChapters,

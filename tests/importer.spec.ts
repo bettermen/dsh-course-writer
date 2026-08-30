@@ -79,11 +79,19 @@ describe('importer/parse — 中文课时识别', () => {
 
 describe('importer/parse — md 与英文', () => {
   it('md frontmatter 课程名+题材 + `# 第1章` 标题', () => {
-    const text = '---\ntitle: 星海征途\ngenre: 科幻\n---\n\n# 第1章 启航\n讲义。\n\n## 第2章 跃迁\n讲义二。'
+    const text = '---\ntitle: 星海征途\ngenre: 科普\n---\n\n# 第1章 启航\n讲义。\n\n## 第2章 跃迁\n讲义二。'
     const book = parseBookFile('x.md', text)
     expect(book.title).toBe('星海征途')
-    expect(book.genre).toBe('scifi')
+    expect(book.genre).toBe('science')
     expect(book.chapters.map((c) => c.title)).toEqual(['启航', '跃迁'])
+  })
+
+  it('题材按类型口径解析（同一个「科幻」：小说 → kehuan，课程 → general）', () => {
+    const text = '---\ntitle: 星海征途\ngenre: 科幻\n---\n\n# 第1章 启航\n讲义。'
+    expect(parseBookFile('x.md', text, { kind: 'novel' }).genre).toBe('kehuan')
+    expect(parseBookFile('x.md', text).genre).toBe('general')
+    // 论文口径：genre 落在论文题材表内才采纳，否则用该类型默认题材
+    expect(parseBookFile('x.md', text, { kind: 'thesis' }).genre).toBe('engineering')
   })
 
   it('md 非课时标题（如 ## 人物设定）也作为课时保留', () => {

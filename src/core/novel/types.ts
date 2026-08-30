@@ -2,9 +2,21 @@
  * xiashuo — 课程项目域类型（P1-B）。
  */
 import type { PhaseId, PhaseRecord } from '../workflow/types.ts'
+import type { ProjectStatus } from './status.ts'
 
-/** 项目状态。 */
-export type BookStatus = 'drafting' | 'finished' | 'abandoned'
+/** P2 之前的历史状态取值（磁盘上仍可能存在）。 */
+export type LegacyBookStatus = 'drafting' | 'finished' | 'abandoned'
+
+/**
+ * 项目状态（**磁盘态**，详见 core/novel/status.ts）。
+ *
+ * P2 起为五态：草稿 / 进行中 / 暂停 / 已完成 / 已归档；
+ * 历史三态 `drafting / finished / abandoned` 仍在类型内，代表"从旧 book.json
+ * 读到的原始值"——存储层在读取时归一到五态（惰性迁移，不批量重写）。
+ *
+ * 对外契约（BookSummary / API）一律是归一后的 `ProjectStatus`。
+ */
+export type BookStatus = ProjectStatus | LegacyBookStatus
 
 /**
  * 项目类型 id（见 core/kinds.ts：course/official/novel/thesis + 用户自定义）。
@@ -57,6 +69,8 @@ export interface Book {
   genre: string
   /** 项目类型（决定默认工作流模板）。旧项目缺失时按 DEFAULT_KIND_ID 处理。 */
   kind?: KindId
+  /** 一句话简介（首页卡片展示；P2 新增，旧项目缺省）。 */
+  description?: string
   status: BookStatus
   config: BookConfig
   /** 流程状态机面（workflow 引擎直接操作）。 */
@@ -79,9 +93,18 @@ export interface BookSummary {
   genre: string
   /** 项目类型（恒有值：缺失时由存储层补 DEFAULT_KIND_ID）。 */
   kind: KindId
-  status: BookStatus
+  /** 一句话简介（缺省为空串，便于首页直接渲染）。 */
+  description: string
+  /** 归一后的项目状态（恒为五态之一）。 */
+  status: ProjectStatus
+  /** 类型名（首页卡片免查类型表；由路由层填充，存储层给 id 兜底）。 */
+  kindLabel?: string
+  /** 流程进度：已完成阶段数 / 总阶段数（首页进度条；缺省 0/0）。 */
+  phaseDone?: number
+  phaseTotal?: number
   currentPhase: PhaseId
   chapterCount: number
   totalWords: number
+  createdAt: string
   updatedAt: string
 }

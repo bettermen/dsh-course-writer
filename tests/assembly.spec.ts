@@ -2,6 +2,8 @@ import { describe, expect, it, vi } from 'vitest'
 import { NovelAssembly } from '../src/assembly.ts'
 import type { LoreService } from '../src/core/lorebook/index.ts'
 import type { NovelService } from '../src/core/novel/index.ts'
+import { KindStore } from '../src/core/kinds-store.ts'
+import { WorkflowStore } from '../src/core/workflow/store.ts'
 
 /** 当前注册的工具总数（lorebook 13 + novel 10 + extras 9 + quality 5 + quiz 3 + guide 2 + skill 1 + stats 1）。 */
 const TOOL_COUNT = 44
@@ -32,6 +34,8 @@ function mockServicesFactory() {
       novel: { dir } as unknown as NovelService,
       llm: null,
       bookDirOf: (id: string) => id,
+      kinds: new KindStore(`${dir}/kinds.json`),
+      workflows: new WorkflowStore(`${dir}/templates/workflows/user`),
     }
   }
   return { factory, created }

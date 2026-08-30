@@ -20,6 +20,7 @@
  */
 import type { PluginError } from '../types.ts'
 import { genreIdFromLabel, isGenreId } from '../genres.ts'
+import { BUILTIN_KINDS, DEFAULT_KIND_ID, defaultGenreOf, genresOf } from '../kinds.ts'
 
 export interface ParsedChapter {
   title: string
@@ -29,13 +30,30 @@ export interface ParsedChapter {
 export interface ParsedBook {
   title: string
   genre: string
+  /**
+   * 项目类型 id（P2：4 种内置类型 + 自定义）。可选是因为 BookImporter 也接受
+   * 外部构造的解析结果；缺省时按 course 建书（见 engine.ts）。
+   */
+  kind?: string
   chapters: ParsedChapter[]
+}
+
+/** parseBookFile 的可选入参。 */
+export interface ParseOptions {
+  /** 项目类型 id（缺省 course）。决定题材映射口径。 */
+  kind?: string
 }
 
 // ── 标题正则 ──────────────────────────────────────────────────────────────
 
 const NUM = '(?:\\d{1,4}|[零〇一二三四五六七八九十百千万两]+)'
-const UNIT = '[课时回卷部篇集]'
+/**
+ * 课时/章节量词。用**多选一**而非字符类，让「章节」「课时」这类双字量词整体匹配
+ * （字符类 `[章节]` 会把「第一章」拆成量词「章」+ 正文「节」，从而整行失配）。
+ * 回归教训：曾误改为 `'[课时回卷部篇集]'`（删掉「章」），导致 `第一章` 全部识别不出、
+ * 导入功能整体瘫痪 —— 改这里务必跑 tests/importer.spec.ts。
+ */
+const UNIT = '(?:章节|课时|章|回|卷|部|篇|集|节|课)'
 const SPEC_WORDS = '(楔子|序章|序言|引子|前言|后记|尾声|番外|外传|终章|最终章|大结局)'
 /** 标题与讲义的分隔符（不含逗号：讲义"第三章，…"不误判）。 */
 const SEP = '[ \\u3000:：、.．·\\-—]'
@@ -198,42 +216,65 @@ function stem(fileName: string): string {
   return cleaned || '未命名课程'
 }
 
+/** 常见口语变体 → 课程学科 id（仅课程口径使用）。 */
+const COURSE_GENRE_ALIASES: Readonly<Record<string, string>> = Object.freeze({
+  '通识': 'general', '通用': 'general', '素养': 'general',
+  '人文': 'humanities', '社科': 'humanities',
+  '科普': 'science', '科学': 'science',
+  '数学': 'math', '高数': 'math', '奥数': 'math',
+  '语文': 'chinese', '国文': 'chinese', '写作': 'chinese',
+  '英语': 'english', '外文': 'english', '外语': 'english',
+  '物理': 'physics', '化学': 'chemistry', '生物': 'biology',
+  '地理': 'geography',
+  '编程': 'programming', '计算机': 'programming', '代码': 'programming', '前端': 'programming',
+  '营销': 'marketing', '市场': 'marketing',
+  '管理': 'management', '财务': 'finance', '会计': 'finance', '金融': 'finance',
+  '法律': 'law', '法务': 'law',
+  '考证': 'certification', '职业资格': 'certification',
+  '公考': 'civil-service', '公务员': 'civil-service', '编制': 'civil-service', '事业单位': 'civil-service',
+  '美术': 'art', '音乐': 'music',
+  '健康': 'health', '养生': 'health', '体育': 'sports', '健身': 'sports',
+})
+
 /**
- * 题材归一化（frontmatter genre / 中文标签 / 常见变体 → 内置题材 id；未知回退 general）。
- * 注：此处题材指「课程学科」（见 core/genres.ts）；小说/公文/论文题材见 core/kinds.ts。
+ * 题材归一化（**类型感知**）：frontmatter `genre` / 中文标签 / 常见口语变体 → 题材 id。
+ *
+ * 解析口径按 `kindId` 切换，因为同一个词在不同类型下含义不同（例：`science`
+ * 在课程口径是「科普」，在论文口径是「理学」）。
+ *
+ * 1. 目标类型自带题材表内命中（id 或中文标签，大小写不敏感）→ 直接采用；
+ * 2. 课程口径额外沿用历史别名表（保证旧导入结果不变）；
+ * 3. 都未命中 → 该类型的默认题材（课程 `general`、小说 `xuanhuan`…），
+ *    而不是硬写 `general` —— 否则导入小说会落到课程题材表里一个不存在的 id。
  */
-export function mapGenre(raw: string): string {
-  const value = String(raw ?? '').trim().toLowerCase()
-  if (!value) return 'general'
-  // 已是合法题材 id → 直通
-  if (isGenreId(value)) return value
-  // 中文标签（如「通识」「人文」）→ id
-  const fromLabel = genreIdFromLabel(value)
-  if (fromLabel) return fromLabel
-  // 常见口语变体 → 学科 id
-  const aliases: Record<string, string> = {
-    '通识': 'general', '通用': 'general', '素养': 'general',
-    '人文': 'humanities', '社科': 'humanities',
-    '科普': 'science', '科学': 'science',
-    '数学': 'math', '高数': 'math', '奥数': 'math',
-    '语文': 'chinese', '国文': 'chinese', '写作': 'chinese',
-    '英语': 'english', '外文': 'english', '外语': 'english',
-    '物理': 'physics', '化学': 'chemistry', '生物': 'biology',
-    '地理': 'geography',
-    '编程': 'programming', '计算机': 'programming', '代码': 'programming', '前端': 'programming',
-    '营销': 'marketing', '市场': 'marketing',
-    '管理': 'management', '财务': 'finance', '会计': 'finance', '金融': 'finance',
-    '法律': 'law', '法务': 'law',
-    '考证': 'certification', '职业资格': 'certification',
-    '公考': 'civil-service', '公务员': 'civil-service', '编制': 'civil-service', '事业单位': 'civil-service',
-    '美术': 'art', '音乐': 'music',
-    '健康': 'health', '养生': 'health', '体育': 'sports', '健身': 'sports',
+export function mapGenre(raw: string, kindId: string = DEFAULT_KIND_ID): string {
+  const value = String(raw ?? '').trim()
+  const lower = value.toLowerCase()
+  const fallback = defaultGenreOf(BUILTIN_KINDS, kindId)
+  if (!value) return fallback
+
+  // 1) 目标类型自带题材
+  const hit = genresOf(BUILTIN_KINDS, kindId).find(
+    (genre) => genre.id === lower || genre.label.toLowerCase() === lower,
+  )
+  if (hit) return hit.id
+
+  // 2) 课程口径的历史别名表
+  if (kindId === DEFAULT_KIND_ID) {
+    if (isGenreId(lower)) return lower
+    const fromLabel = genreIdFromLabel(lower)
+    if (fromLabel) return fromLabel
+    const aliased = COURSE_GENRE_ALIASES[value] ?? COURSE_GENRE_ALIASES[lower]
+    if (aliased) return aliased
   }
-  return aliases[value] ?? 'general'
+
+  // 3) 未命中 → 该类型默认题材
+  return fallback
 }
 
 /** 解析课程文件（txt / md）。失败抛 PluginError（IMPORT_FILE_EMPTY / NO_IMPORTABLE_ENTRIES）。 */
-export function parseBookFile(fileName: string, content: string): ParsedBook {
+export function parseBookFile(fileName: string, content: string, options: ParseOptions = {}): ParsedBook {
+  const kind = String(options.kind ?? '').trim() || DEFAULT_KIND_ID
   let text = String(content ?? '').replace(/^\uFEFF/, '').replace(/\r\n?/g, '\n')
   if (!text.trim()) {
     throw { code: 'IMPORT_FILE_EMPTY', message: '文件内容为空' } as PluginError
@@ -289,7 +330,8 @@ export function parseBookFile(fileName: string, content: string): ParsedBook {
     }
     return {
       title: metaTitle ?? '未命名课程',
-      genre: mapGenre(metaGenre ?? ''),
+      genre: mapGenre(metaGenre ?? '', kind),
+      kind,
       chapters: chunks,
     }
   }
@@ -327,5 +369,5 @@ export function parseBookFile(fileName: string, content: string): ParsedBook {
   }
   title = title || stem(fileName)
 
-  return { title, genre: mapGenre(metaGenre ?? ''), chapters: built }
+  return { title, genre: mapGenre(metaGenre ?? '', kind), kind, chapters: built }
 }

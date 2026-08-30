@@ -25,6 +25,7 @@ import { builtinTemplateOf } from '../workflow/templates.ts'
 import { DEFAULT_KIND_ID } from '../kinds.ts'
 import type { Workflow } from '../workflow/schema.ts'
 import type { AuditEvent, PhaseId } from '../workflow/types.ts'
+import { normalizeStatus } from './status.ts'
 import type { Book, BookConfig, BookSummary, Chapter, KindId } from './types.ts'
 
 /** 当前 book.json 格式版本。 */
@@ -49,16 +50,19 @@ function defaultConfig(genre: string): BookConfig {
   }
 }
 
-function toSummary(book: Book): BookSummary {
+/** Book → 列表摘要（状态在此归一为五态；导出供路由层在写操作后回填卡片）。 */
+export function toSummary(book: Book): BookSummary {
   return {
     id: book.id,
     title: book.title,
     genre: book.genre,
     kind: book.kind ?? DEFAULT_KIND_ID,
-    status: book.status,
+    description: book.description ?? '',
+    status: normalizeStatus(book.status),
     currentPhase: book.currentPhase,
     chapterCount: book.stats.chapterCount,
     totalWords: book.stats.totalWords,
+    createdAt: book.createdAt,
     updatedAt: book.updatedAt,
   }
 }
@@ -140,7 +144,7 @@ export class NovelStore {
       title: params.title.trim(),
       genre,
       kind,
-      status: 'drafting',
+      status: 'draft',
       config,
       phases: ledger.phases,
       currentPhase: ledger.currentPhase,
@@ -252,13 +256,15 @@ export class NovelStore {
     }
     // 迁移 1：P1 之前的项目没有 kind 字段 —— 一律归属默认类型（course）
     const kind = typeof raw.kind === 'string' && raw.kind.trim().length > 0 ? raw.kind.trim() : DEFAULT_KIND_ID
+    // 迁移 1b：P2 之前的状态只有三态 —— 读取时归一为五态（惰性迁移，不重写文件）
+    const status = normalizeStatus(raw.status)
     // 迁移 2：缺失阶段记录补全为 locked。顺序优先取项目工作流，无工作流时回退旧九阶段
     const order = (await this.workflowPhaseIds(id)) ?? DEFAULT_PHASE_ORDER
     const phases = { ...raw.phases }
     for (const phaseId of order) {
       if (!phases[phaseId]) phases[phaseId] = { id: phaseId, state: 'locked', version: 0 }
     }
-    return { ...raw, kind, phases, schemaVersion: BOOK_SCHEMA_VERSION }
+    return { ...raw, kind, status, phases, schemaVersion: BOOK_SCHEMA_VERSION }
   }
 
   async saveBook(book: Book): Promise<void> {

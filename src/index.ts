@@ -23,6 +23,8 @@ import z from 'schemastery'
 import { LoreService, LoreStore } from './core/lorebook/index.ts'
 import { NovelService, NovelStore } from './core/novel/index.ts'
 import { VariableStoreFile, variablesFilePath } from './core/variables/index.ts'
+import { KindStore } from './core/kinds-store.ts'
+import { WorkflowStore } from './core/workflow/store.ts'
 import { captureRoute, createLlmClient } from './core/llm/index.ts'
 import type LlmService from '@deepseek-ai/dsh-llm'
 import { NovelAssembly, type NovelServices } from './assembly.ts'
@@ -87,6 +89,8 @@ export function apply(ctx: Context, config: Config): void {
         novel,
         llm: llm ? createLlmClient(llm, route) : null,
         bookDirOf: (bookId) => novelStore.getBookDir(bookId),
+        kinds: new KindStore(join(dir, 'kinds.json')),
+        workflows: new WorkflowStore(join(dir, 'templates', 'workflows', 'user')),
       }
     },
   })

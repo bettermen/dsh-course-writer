@@ -369,6 +369,10 @@ export function Home({ api: base, fenceHeader, onOpenProject, onClose }: HomeOpt
   const [menu, setMenu] = useState<{ x: number; y: number; items: MenuItem[] } | null>(null)
   const [modal, setModal] = useState<ModalState>(null)
 
+  // 窗口控制（与工作台一致：全屏 / 缩小 50% / 关闭）
+  const [win, setWin] = useState<'full' | 'half'>('full')
+  const [halfSize, setHalfSize] = useState(() => ({ w: Math.round(window.innerWidth * 0.46), h: Math.round(window.innerHeight * 0.58) }))
+
   useEffect(() => { injectAppleStyles() }, [])
 
   const kindIcon = useMemo(() => new Map(kinds.map((k) => [k.id, k.icon])), [kinds])
@@ -559,9 +563,41 @@ export function Home({ api: base, fenceHeader, onOpenProject, onClose }: HomeOpt
     )
   }
 
+  // 缩小窗口的左下角拖拽缩放：右上角固定，向左拖变宽、向下拖变高（与工作台一致）。
+  const startResize = (e: React.MouseEvent): void => {
+    e.preventDefault()
+    const startX = e.clientX
+    const startY = e.clientY
+    const startW = halfSize.w
+    const startH = halfSize.h
+    const onMove = (ev: MouseEvent): void => {
+      const w = Math.max(320, startW - (ev.clientX - startX))
+      const h = Math.max(240, startH + (ev.clientY - startY))
+      setHalfSize({ w, h })
+    }
+    const onUp = (): void => {
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+    }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+  }
+
+  const shrinkToHalf = (): void => {
+    setHalfSize({ w: Math.round(window.innerWidth * 0.46), h: Math.round(window.innerHeight * 0.58) })
+    setWin('half')
+  }
+
+  const handleClose = (): void => {
+    onClose()
+  }
+
+  const rootStyle: React.CSSProperties = win === 'full'
+    ? { position: 'fixed', inset: 0, zIndex: 99999, background: 'var(--cw-secondaryBg)', display: 'flex', flexDirection: 'column', fontFamily: 'var(--cw-font)', color: 'var(--cw-label)', overflow: 'hidden', pointerEvents: 'auto' }
+    : { position: 'fixed', width: halfSize.w, height: halfSize.h, right: 16, top: 16, zIndex: 99999, background: 'var(--cw-secondaryBg)', display: 'flex', flexDirection: 'column', fontFamily: 'var(--cw-font)', color: 'var(--cw-label)', overflow: 'hidden', borderRadius: 12, border: '0.5px solid var(--cw-separator)', boxShadow: '0 12px 48px rgba(0,0,0,0.25)', pointerEvents: 'auto' }
+
   return (
-    <div className="cw-root" data-theme={scheme}
-      style={{ position: 'absolute', inset: 0, zIndex: 99999, background: 'var(--cw-secondaryBg)', display: 'flex', flexDirection: 'column', fontFamily: 'var(--cw-font)', color: 'var(--cw-label)', overflow: 'hidden' }}>
+    <div className="cw-root" data-theme={scheme} style={rootStyle}>
       <div className="cw-home">
         {/* 顶栏 */}
         <div className="cw-home-bar">
@@ -570,6 +606,9 @@ export function Home({ api: base, fenceHeader, onOpenProject, onClose }: HomeOpt
           <span className="cw-home-bar-spacer" />
           <span className="cw-home-sub" style={{ fontSize: 12 }}>{tf('projectCount', items.length)}</span>
           <button className="cw-btn cw-btn-primary cw-btn-sm" onClick={() => setModal({ type: 'create' })}>{t('newProjectBtn')}</button>
+          <button className="cw-btn cw-btn-sm" onClick={shrinkToHalf} disabled={win === 'half'}>{t('shrinkHalf')}</button>
+          <button className="cw-btn cw-btn-sm" onClick={() => setWin('full')} disabled={win === 'full'}>{t('fullscreen')}</button>
+          <button className="cw-btn cw-btn-sm" onClick={handleClose}>{t('close')}</button>
         </div>
 
         {/* 工具条 */}
@@ -653,6 +692,18 @@ export function Home({ api: base, fenceHeader, onOpenProject, onClose }: HomeOpt
 
         {menu && <ContextMenu x={menu.x} y={menu.y} items={menu.items} onClose={() => setMenu(null)} />}
       </div>
+
+      {win === 'half' && (
+        <div
+          onMouseDown={startResize}
+          title={t('resizeTitle')}
+          style={{ position: 'absolute', left: 0, bottom: 0, width: 24, height: 24, cursor: 'nesw-resize', zIndex: 100, display: 'flex', alignItems: 'flex-end', justifyContent: 'flex-start' }}
+        >
+          <svg width="13" height="13" viewBox="0 0 13 13" style={{ margin: 4 }}>
+            <path d="M11 2 L2 11 M11 6 L6 11 M11 10 L10 11" stroke="#999" strokeWidth="1.5" strokeLinecap="round" fill="none" />
+          </svg>
+        </div>
+      )}
     </div>
   )
 }
@@ -675,7 +726,7 @@ export function mountHome(options: HomeOptions): { toggle: () => void; open: () 
   const openPanel = (): void => {
     close()
     host = document.createElement('div')
-    host.style.cssText = 'position:fixed;inset:0;z-index:99999;'
+    host.style.cssText = 'position:fixed;inset:0;z-index:99998;pointer-events:none;'
     document.body.appendChild(host)
     root = createRoot(host)
     root.render(<Home {...options} onClose={close} />)

@@ -157,6 +157,15 @@ ${Object.keys(darkTokens).map((k) => `  --cw-${k}: ${(darkTokens as Record<strin
 
 .cw-btn-sm { padding: 4px 9px; font-size: 12px; }
 
+/* 图标按钮（顶栏窗口控制 / 操作）：方形、图标居中。 */
+.cw-btn-icon {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border-radius: var(--cw-r-sm);
+}
+.cw-btn-icon svg { flex-shrink: 0; }
+
 /* ---------- 分段控件（iOS Segmented Control）---------- */
 .cw-segmented {
   display: inline-flex;

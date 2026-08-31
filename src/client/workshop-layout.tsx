@@ -11,6 +11,7 @@ import { MarkdownEditor, type MarkdownEditorApi } from './markdown-editor.tsx'
 import { MdToolbar } from './md-toolbar.tsx'
 import { renderMarkdown } from './markdown-render.ts'
 import { WorkflowEditor } from './workflow-editor.tsx'
+import { IconClose, IconExport, IconFullscreen, IconShare, IconShrinkHalf } from './icons.tsx'
 
 function kwText(kw: string | string[] | undefined): string {
   if (Array.isArray(kw)) return kw.join(', ')
@@ -571,13 +572,13 @@ export function WorkshopLayout({ api: base, fenceHeader, initialProjectId, onBac
         <select value={selected} onChange={(e) => void select(e.target.value)} className="cw-input" style={{ width: 'auto', minWidth: 150 }}>
           {projects.map((p) => <option key={p.id} value={p.id}>{p.title}</option>)}
         </select>
-        <button onClick={() => setShowExport(true)} disabled={!selected} className="cw-btn cw-btn-sm">{t('export')}</button>
-        <button onClick={() => void openShare()} disabled={!selected} className="cw-btn cw-btn-sm">{t('share')}</button>
+        <button onClick={() => setShowExport(true)} disabled={!selected} className="cw-btn cw-btn-icon" title={t('export')} aria-label={t('export')}><IconExport /></button>
+        <button onClick={() => void openShare()} disabled={!selected} className="cw-btn cw-btn-icon" title={t('share')} aria-label={t('share')}><IconShare /></button>
         <span style={{ flex: 1 }} />
         {notice && <span style={{ fontSize: 12, color: 'var(--cw-green)' }}>{notice}</span>}
-        <button onClick={shrinkToHalf} disabled={win === 'half'} className="cw-btn cw-btn-sm">{t('shrinkHalf')}</button>
-        <button onClick={() => setWin('full')} disabled={win === 'full'} className="cw-btn cw-btn-sm">{t('fullscreen')}</button>
-        <button onClick={handleClose} className="cw-btn cw-btn-sm">{t('close')}</button>
+        <button onClick={shrinkToHalf} disabled={win === 'half'} className="cw-btn cw-btn-icon" title={t('shrinkHalf')} aria-label={t('shrinkHalf')}><IconShrinkHalf /></button>
+        <button onClick={() => setWin('full')} disabled={win === 'full'} className="cw-btn cw-btn-icon" title={t('fullscreen')} aria-label={t('fullscreen')}><IconFullscreen /></button>
+        <button onClick={handleClose} className="cw-btn cw-btn-icon" title={t('close')} aria-label={t('close')}><IconClose /></button>
       </div>
 
       {win === 'half' && (

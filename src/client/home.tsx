@@ -25,6 +25,7 @@ import {
 import type { ProjectStatus } from '../core/novel/status.ts'
 import { formatWords, progressPercent, relativeTime, statusLabel, statusTone, kindLabelOf } from './format.ts'
 import { ContextMenu, type MenuItem } from './context-menu.tsx'
+import { IconClose, IconFullscreen, IconShrinkHalf } from './icons.tsx'
 
 /** 状态筛选选项（`''` 全部 / `active` 未归档 / 五态）。 */
 const STATUS_VALUES = ['', 'active', 'draft', 'in_progress', 'paused', 'done', 'archived'] as const
@@ -606,9 +607,9 @@ export function Home({ api: base, fenceHeader, onOpenProject, onClose }: HomeOpt
           <span className="cw-home-bar-spacer" />
           <span className="cw-home-sub" style={{ fontSize: 12 }}>{tf('projectCount', items.length)}</span>
           <button className="cw-btn cw-btn-primary cw-btn-sm" onClick={() => setModal({ type: 'create' })}>{t('newProjectBtn')}</button>
-          <button className="cw-btn cw-btn-sm" onClick={shrinkToHalf} disabled={win === 'half'}>{t('shrinkHalf')}</button>
-          <button className="cw-btn cw-btn-sm" onClick={() => setWin('full')} disabled={win === 'full'}>{t('fullscreen')}</button>
-          <button className="cw-btn cw-btn-sm" onClick={handleClose}>{t('close')}</button>
+          <button className="cw-btn cw-btn-icon" onClick={shrinkToHalf} disabled={win === 'half'} title={t('shrinkHalf')} aria-label={t('shrinkHalf')}><IconShrinkHalf /></button>
+          <button className="cw-btn cw-btn-icon" onClick={() => setWin('full')} disabled={win === 'full'} title={t('fullscreen')} aria-label={t('fullscreen')}><IconFullscreen /></button>
+          <button className="cw-btn cw-btn-icon" onClick={handleClose} title={t('close')} aria-label={t('close')}><IconClose /></button>
         </div>
 
         {/* 工具条 */}

@@ -4,7 +4,6 @@
  */
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
-import { GENRES } from '../core/genres.ts'
 import { t } from './i18n.ts'
 import { injectAppleStyles, useAppleScheme } from './apple-ui.ts'
 import { ContextMenu, type MenuItem } from './context-menu.tsx'
@@ -12,8 +11,6 @@ import { MarkdownEditor, type MarkdownEditorApi } from './markdown-editor.tsx'
 import { MdToolbar } from './md-toolbar.tsx'
 import { renderMarkdown } from './markdown-render.ts'
 import { WorkflowEditor } from './workflow-editor.tsx'
-
-const GENRE_GROUPS = [...new Set(GENRES.map((g) => g.group))]
 
 function kwText(kw: string | string[] | undefined): string {
   if (Array.isArray(kw)) return kw.join(', ')
@@ -163,9 +160,6 @@ export function WorkshopLayout({ api: base, fenceHeader, initialProjectId, onBac
   const [leftTab, setLeftTab] = useState<'chapters' | 'phases' | 'workflow'>('chapters')
   const [leftW, setLeftW] = useState(220)
   const [rightW, setRightW] = useState(300)
-  const [showCreate, setShowCreate] = useState(false)
-  const [newTitle, setNewTitle] = useState('')
-  const [newGenre, setNewGenre] = useState('general')
   const [showExport, setShowExport] = useState(false)
   const [exportFormat, setExportFormat] = useState<'txt' | 'word'>('txt')
   const [showShare, setShowShare] = useState(false)
@@ -266,23 +260,6 @@ export function WorkshopLayout({ api: base, fenceHeader, initialProjectId, onBac
     return list
   }
 
-  const openCreate = (): void => {
-    setNewTitle('')
-    setNewGenre('general')
-    setShowCreate(true)
-  }
-
-  const confirmCreate = async (): Promise<void> => {
-    const title = newTitle.trim()
-    if (!title) return
-    const j = await api('/projects', { method: 'POST', body: JSON.stringify({ title, genre: newGenre }) })
-    const created = (j?.value ?? j) as ProjectSummary
-    await reloadProjects()
-    if (created?.id) await select(created.id)
-    setShowCreate(false)
-    setNotice(t('createdNotice'))
-  }
-
   const triggerDownload = (blob: Blob, fileName: string): void => {
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
@@ -340,35 +317,6 @@ export function WorkshopLayout({ api: base, fenceHeader, initialProjectId, onBac
     await api(`/projects/${selected}/unshare`, { method: 'POST', body: JSON.stringify({ token }) })
     setShares(parseShares(await api(`/projects/${selected}/shares`)))
     if (shareLink.endsWith(token)) setShareLink('')
-  }
-
-  const renameProject = async (): Promise<void> => {
-    if (!selected) return
-    const cur = projects.find((p) => p.id === selected)
-    const title = window.prompt(t('renamePrompt'), cur?.title ?? '')
-    if (!title || !title.trim()) return
-    await api(`/projects/${selected}/rename`, { method: 'POST', body: JSON.stringify({ title: title.trim() }) })
-    await reloadProjects()
-    if (book) setBook({ ...book, book: { ...book.book, title: title.trim() } })
-    setNotice(t('renamedNotice'))
-  }
-
-  const deleteProject = async (): Promise<void> => {
-    if (!selected) return
-    const cur = projects.find((p) => p.id === selected)
-    const ok = window.confirm(`${t('delProjectPrefix')}${cur?.title ?? selected}${t('delProjectSuffix')}`)
-    if (!ok) return
-    await api(`/projects/${selected}/delete`, { method: 'POST', body: JSON.stringify({ keepChapters: false }) })
-    const list = await reloadProjects()
-    if (list.length > 0) await select(list[0]!.id)
-    else {
-      setSelected('')
-      setBook(null)
-      setDraft('')
-      setChapters([])
-      setChapterTitle('')
-    }
-    setNotice(t('deletedNotice'))
   }
 
   const reloadLore = async (): Promise<void> => {
@@ -623,9 +571,6 @@ export function WorkshopLayout({ api: base, fenceHeader, initialProjectId, onBac
         <select value={selected} onChange={(e) => void select(e.target.value)} className="cw-input" style={{ width: 'auto', minWidth: 150 }}>
           {projects.map((p) => <option key={p.id} value={p.id}>{p.title}</option>)}
         </select>
-        <button onClick={openCreate} className="cw-btn cw-btn-sm">{t('newProject')}</button>
-        <button onClick={() => void renameProject()} disabled={!selected} className="cw-btn cw-btn-sm">{t('rename')}</button>
-        <button onClick={() => void deleteProject()} disabled={!selected} className="cw-btn cw-btn-sm cw-btn-danger">{t('delete')}</button>
         <button onClick={() => setShowExport(true)} disabled={!selected} className="cw-btn cw-btn-sm">{t('export')}</button>
         <button onClick={() => void openShare()} disabled={!selected} className="cw-btn cw-btn-sm">{t('share')}</button>
         <span style={{ flex: 1 }} />
@@ -859,33 +804,6 @@ export function WorkshopLayout({ api: base, fenceHeader, initialProjectId, onBac
                 </div>
               )
             )}
-          </div>
-        </div>
-      )}
-
-      {showCreate && (
-        <div className="cw-modal-backdrop" style={{ borderRadius: 12 }}>
-          <div className="cw-modal" style={{ width: 360 }}>
-            <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 14 }}>{t('createCourse')}</div>
-            <label style={{ fontSize: 12, color: 'var(--cw-secondaryLabel)', display: 'block', marginBottom: 4 }}>{t('courseName')}</label>
-            <input
-              value={newTitle}
-              onChange={(e) => setNewTitle(e.target.value)}
-              placeholder={t('courseNamePlaceholder')}
-              className="cw-input" style={{ marginBottom: 12 }}
-            />
-            <label style={{ fontSize: 12, color: 'var(--cw-secondaryLabel)', display: 'block', marginBottom: 4 }}>{t('courseType')}</label>
-            <select value={newGenre} onChange={(e) => setNewGenre(e.target.value)} className="cw-input" style={{ marginBottom: 16 }}>
-              {GENRE_GROUPS.map((g) => (
-                <optgroup key={g} label={g}>
-                  {GENRES.filter((x) => x.group === g).map((x) => <option key={x.id} value={x.id}>{x.label}</option>)}
-                </optgroup>
-              ))}
-            </select>
-            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-              <button onClick={() => setShowCreate(false)} className="cw-btn cw-btn-sm">{t('cancel')}</button>
-              <button onClick={() => void confirmCreate()} disabled={!newTitle.trim()} className="cw-btn cw-btn-sm cw-btn-primary">{t('create')}</button>
-            </div>
           </div>
         </div>
       )}
